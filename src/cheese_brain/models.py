@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Any, Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, field_serializer
 
 
 class EntityCategory(str, Enum):
@@ -49,12 +49,14 @@ class Entity(BaseModel):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     deleted_at: Optional[datetime] = None
 
-    model_config = ConfigDict(
-        json_encoders={
-            datetime: lambda v: v.isoformat(),
-            UUID: lambda v: str(v),
-        }
-    )
+    @field_serializer('id', 'created_at', 'updated_at', 'deleted_at')
+    def serialize_special_types(self, value):
+        """Serialize UUID and datetime fields to string."""
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, UUID):
+            return str(value)
+        return value
 
     def mark_deleted(self) -> None:
         """Soft delete this entity."""
@@ -75,9 +77,11 @@ class AuditLog(BaseModel):
     new_data: dict[str, Any]
     changed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    model_config = ConfigDict(
-        json_encoders={
-            datetime: lambda v: v.isoformat(),
-            UUID: lambda v: str(v),
-        }
-    )
+    @field_serializer('entity_id', 'changed_at')
+    def serialize_special_types(self, value):
+        """Serialize UUID and datetime fields to string."""
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, UUID):
+            return str(value)
+        return value

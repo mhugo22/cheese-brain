@@ -6,7 +6,7 @@ import duckdb
 import json
 from pathlib import Path
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from cheese_brain.models import Entity, EntityCategory
@@ -362,7 +362,7 @@ class CheeseBrain:
                 INSERT INTO audit_log (entity_id, action, new_data)
                 VALUES (?, 'delete', ?)
                 """,
-                [str(entity_id), json.dumps({"deleted_at": datetime.utcnow().isoformat()})],
+                [str(entity_id), json.dumps({"deleted_at": datetime.now(timezone.utc).isoformat()})],
             )
 
             self.conn.execute("COMMIT")
