@@ -15,8 +15,9 @@ You've shipped projects, met people, solved problems, and made decisions. But ca
 
 **Cheese Brain** is your searchable, git-friendly second brain built on DuckDB. It's:
 
-- 🚀 **Fast** - Sub-100ms keyword queries on 10k+ records
+- 🚀 **Fast** - Sub-1ms keyword queries, 5ms FTS with BM25 ranking
 - 🧠 **Flexible** - 22+ entity types (projects, contacts, APIs, decisions, and more)
+- 🔍 **Full-Text Search** - Relevance-ranked results with stemming & stopword filtering
 - 🤖 **Agent-ready** - Designed for AI assistants to query/update autonomously
 - 📦 **Portable** - Single-file database, no server required
 - 🔒 **Private** - Your data stays local (optional cloud backup)
@@ -100,6 +101,10 @@ Track anything that matters:
 # Keyword search
 cheese-brain search "email"
 
+# Full-text search (BM25 relevance ranking)
+cheese-brain fts "backup config"
+# Returns: Config Backup Script (score: 2.413) - best match first
+
 # Filter by category
 cheese-brain list --category contact
 
@@ -109,6 +114,11 @@ cheese-brain list --since 2026-01-01
 # Tags
 cheese-brain list --tags security,webapp
 ```
+
+**FTS vs Regular Search:**
+- **FTS:** Relevance-ranked (BM25), stemming, stopword filtering
+- **Regular:** Chronological, exact matches, category/tag/date filters
+- [Full FTS documentation →](FTS.md)
 
 ### 🔄 Backup & Restore
 

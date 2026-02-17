@@ -77,13 +77,12 @@ class CheeseBrain:
         self.conn.execute("CREATE INDEX idx_created ON entities(created_at DESC)")
         self.conn.execute("CREATE INDEX idx_title_lower ON entities(LOWER(title))")
 
-        # FTS extension
+        # FTS extension (install + load, but don't create index yet)
         try:
             self.conn.execute("INSTALL fts")
             self.conn.execute("LOAD fts")
-            self.conn.execute("PRAGMA create_fts_index('entities', 'id', 'title', 'category')")
         except Exception:
-            # FTS optional - continue without it
+            # FTS installation failed - continue without it
             pass
 
         # Audit log (no foreign key constraint - keep logs even if entity deleted)
@@ -237,6 +236,71 @@ class CheeseBrain:
 
         results = self.conn.execute(sql, params).fetchall()
         return [self._row_to_entity(row) for row in results]
+
+    def fts_search(
+        self,
+        query: str,
+        category: Optional[str] = None,
+        limit: int = 50,
+    ) -> list[tuple[Entity, float]]:
+        """Full-text search using DuckDB FTS (BM25 ranking).
+        
+        Searches across title and category fields using BM25 scoring.
+        Returns results ranked by relevance with their scores.
+        
+        Args:
+            query: Search query string
+            category: Optional category filter
+            limit: Maximum number of results
+            
+        Returns:
+            List of (entity, score) tuples ranked by relevance
+            
+        Raises:
+            RuntimeError: If FTS extension is not available
+        """
+        # Check if FTS is available
+        try:
+            self.conn.execute("SELECT * FROM fts_main_entities.docs LIMIT 0")
+        except Exception:
+            raise RuntimeError(
+                "FTS extension not available. "
+                "Ensure DuckDB FTS extension is installed and FTS index was created."
+            )
+
+        # Build query with optional category filter
+        where_clauses = ["e.deleted_at IS NULL", "fts.score IS NOT NULL"]
+        params = []
+
+        if category:
+            where_clauses.append("e.category = ?")
+            params.append(category)
+
+        where_sql = " AND ".join(where_clauses)
+
+        # Use FTS match with BM25 scoring
+        # The 'name' column in fts docs corresponds to entity UUID cast as VARCHAR
+        sql = f"""
+            SELECT 
+                e.*,
+                fts.score
+            FROM entities e
+            JOIN (
+                SELECT 
+                    name::UUID as entity_id,
+                    fts_main_entities.match_bm25(name, ?) as score
+                FROM fts_main_entities.docs
+            ) fts ON e.id = fts.entity_id
+            WHERE {where_sql}
+            ORDER BY fts.score DESC
+            LIMIT ?
+        """
+        params.insert(0, query)
+        params.append(limit)
+
+        results = self.conn.execute(sql, params).fetchall()
+        # Return (entity, score) tuples
+        return [(self._row_to_entity(row[:-1]), row[-1]) for row in results]
 
     def list_entities(
         self,
@@ -584,6 +648,46 @@ class CheeseBrain:
             "db_size_bytes": db_size,
             "db_size_mb": round(db_size / 1024 / 1024, 2),
         }
+
+    def create_fts_index(self, force: bool = False) -> bool:
+        """Create or rebuild the FTS (Full-Text Search) index.
+        
+        Creates a Full-Text Search index on the entities table for fast
+        keyword-based searches with BM25 ranking.
+        
+        Args:
+            force: If True, drop existing index and recreate
+            
+        Returns:
+            True if index was created, False if it already exists
+            
+        Raises:
+            RuntimeError: If FTS extension is not available
+        """
+        # Check if FTS is loaded
+        try:
+            self.conn.execute("SELECT * FROM duckdb_extensions() WHERE extension_name = 'fts' AND loaded").fetchone()
+        except:
+            raise RuntimeError("FTS extension not loaded. Run 'INSTALL fts; LOAD fts;' first")
+
+        # Check if FTS index already exists
+        try:
+            existing = self.conn.execute(
+                "SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'fts_main_entities'"
+            ).fetchone()
+            
+            if existing and not force:
+                return False  # Already exists, not forcing rebuild
+            
+            if existing and force:
+                # Drop existing index
+                self.conn.execute("DROP SCHEMA fts_main_entities CASCADE")
+        except Exception:
+            pass
+
+        # Create FTS index
+        self.conn.execute("PRAGMA create_fts_index('entities', 'id', 'title', 'category')")
+        return True
 
     def close(self) -> None:
         """Close database connection."""

@@ -111,6 +111,81 @@ def search(ctx, query, category, tags, since, limit, output_format):
 
 
 @main.command()
+@click.argument("query", type=str)
+@click.option("--category", help="Filter by category")
+@click.option("--limit", default=50, help="Maximum results")
+@click.option("--format", "output_format", type=click.Choice(["table", "json"]), default="table")
+@click.pass_context
+def fts(ctx, query, category, limit, output_format):
+    """Full-text search with BM25 ranking (faster, relevance-ranked).
+    
+    Requires FTS index. Create with: cheese-brain create-fts-index
+    """
+    brain = ctx.obj["brain"]
+
+    try:
+        results = brain.fts_search(
+            query=query,
+            category=category,
+            limit=limit,
+        )
+    except RuntimeError as e:
+        console.print(f"❌ {e}", style="red")
+        console.print("\nRun: cheese-brain create-fts-index", style="yellow")
+        return
+
+    if output_format == "json":
+        output = [{"entity": e.model_dump(), "score": score} for e, score in results]
+        click.echo(json.dumps(output, indent=2, default=str))
+    else:
+        if not results:
+            console.print("No results found.", style="yellow")
+            return
+
+        table = Table(title=f"FTS Search: '{query}'")
+        table.add_column("Score", style="green")
+        table.add_column("Category", style="cyan")
+        table.add_column("Title", style="bold")
+        table.add_column("Tags", style="dim")
+        table.add_column("Created", style="dim")
+
+        for entity, score in results:
+            table.add_row(
+                f"{score:.3f}",
+                entity.category.value,
+                entity.title,
+                ", ".join(entity.tags) if entity.tags else "",
+                entity.created_at.strftime("%Y-%m-%d %H:%M"),
+            )
+
+        console.print(table)
+        console.print(f"\nFound {len(results)} results ranked by relevance", style="dim")
+
+
+@main.command()
+@click.option("--force", is_flag=True, help="Rebuild index if it already exists")
+@click.pass_context
+def create_fts_index(ctx, force):
+    """Create Full-Text Search index for faster keyword searches.
+    
+    This enables the 'fts' command with BM25 relevance ranking.
+    """
+    brain = ctx.obj["brain"]
+
+    try:
+        created = brain.create_fts_index(force=force)
+        if created:
+            console.print("✅ FTS index created successfully", style="green")
+            console.print("\nYou can now use: cheese-brain fts 'search query'", style="dim")
+        else:
+            console.print("FTS index already exists. Use --force to rebuild.", style="yellow")
+    except RuntimeError as e:
+        console.print(f"❌ {e}", style="red")
+    except Exception as e:
+        console.print(f"❌ Error creating FTS index: {e}", style="red")
+
+
+@main.command()
 @click.option("--category", help="Filter by category")
 @click.option("--limit", default=50, help="Maximum results")
 @click.option("--deleted", is_flag=True, help="Show deleted entities")

@@ -65,10 +65,19 @@
 ## 🚀 Phase 2 Features (From PROJECT_PLAN.md)
 
 ### Advanced Search & Retrieval
-- [ ] Full-text search (FTS) implementation
-  - Enable FTS index: `PRAGMA create_fts_index('entities', 'id', 'title', 'data')`
-  - Add FTS search to CLI: `cheese-brain fts "full text query"`
-  - Benchmark FTS vs keyword search performance
+- [x] **Full-text search (FTS) implementation** ✅
+  - FTS index on entities table (title + category fields)
+  - CLI command: `cheese-brain fts "full text query"`
+  - BM25 relevance ranking with scores
+  - Stemming and stopword filtering
+  - 5.22ms avg query time (constant time, scales well)
+  - Documentation: FTS.md (8KB user guide)
+  - Create/rebuild: `cheese-brain create-fts-index [--force]`
+- [ ] FTS enhancements
+  - Index `data` field for deeper search
+  - Custom stopwords configuration
+  - Field weighting (title > category > data)
+  - Fuzzy matching / typo tolerance
 - [ ] Cross-reference detection
   - Find entities that reference each other
   - Build relationship graph
