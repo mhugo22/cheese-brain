@@ -82,11 +82,11 @@ cheese-brain export backups/2026-02-21.json
 
 From a working knowledge base with 44 entities:
 
-### "What was gabby email?"
+### "What was the email monitor project?"
 ```bash
-$ cheese-brain search "gabby email"
+$ cheese-brain search "email monitor"
 ```
-Returns: **Gabby Gmail Monitor** project with full context (repo, path, schedule, run command)
+Returns: **Email Monitor** project with full context (repo, path, schedule, run command)
 
 ### "How do I backup config?"
 ```bash
@@ -100,13 +100,13 @@ $ cheese-brain list --category project --tags shipped
 ```
 Returns: SketchySkills, Gabby Gmail Monitor
 
-### "What's the scouts calendar feed?"
+### "What's the calendar feed for group X?"
 ```bash
-$ cheese-brain search "scout calendar"
+$ cheese-brain search "calendar feed"
 ```
-Returns: **Scouts Troop 725G** contact with Band.us ICS feed URL, location, timezone
+Returns: Contact entity with ICS calendar feed URL, location, timezone
 
-**The problem this solves:** Instead of asking "What's gabby email?" or grepping through files, you get instant, structured answers with all the context you need.
+**The problem this solves:** Instead of asking "What's that project?" or grepping through files, you get instant, structured answers with all the context you need.
 
 ---
 
@@ -178,8 +178,8 @@ from cheese_brain import CheeseBrain
 brain = CheeseBrain()
 
 # Agent queries knowledge base
-results = brain.search("email gabby")
-# Returns: [{'category': 'email', 'title': 'gabby@example.com', ...}]
+results = brain.search("email monitor")
+# Returns: [{'category': 'project', 'title': 'Email Monitor', ...}]
 
 # Agent adds new knowledge
 brain.add_entity(

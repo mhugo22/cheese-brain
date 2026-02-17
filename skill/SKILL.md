@@ -34,7 +34,7 @@ If this shows statistics (entity counts, database size), the installation is suc
 
 Use Cheese Brain when you need to:
 
-- **Recall project context** - "What's the gabby email project?" → instant project details with repo, path, schedule
+- **Recall project context** - "What's the email monitor project?" → instant project details with repo, path, schedule
 - **Look up tools** - "Where's the backup script?" → tool location, usage, related workflows
 - **Find contact info** - "Scout calendar feed?" → contact with calendar URL, location, timezone
 - **Search workflows** - "How do I restore config?" → step-by-step workflow + related tools
@@ -49,9 +49,9 @@ Use Cheese Brain when you need to:
 
 ```bash
 # Keyword search (fast, loose matching)
-cheese-brain search "gabby email"
+cheese-brain search "email monitor"
 cheese-brain search "backup config"
-cheese-brain search "scout calendar"
+cheese-brain search "calendar feed"
 
 # Full-text search (BM25 relevance ranking)
 cheese-brain fts "email monitoring"
@@ -111,10 +111,10 @@ cheese-brain tags                     # Tag usage analysis
 
 ## Query Examples by Use Case
 
-### "What's gabby email?"
+### "What's the email monitor project?"
 ```bash
-cheese-brain search "gabby email"
-# Returns: Gabby Gmail Monitor project with repo, path, cron schedule, run command
+cheese-brain search "email monitor"
+# Returns: Email Monitor project with repo, path, cron schedule, run command
 ```
 
 ### "How do I backup the config?"
@@ -123,10 +123,10 @@ cheese-brain search "backup config"
 # Returns: 5 entities (backup script, restore script, workflow, recovery guide, gateway)
 ```
 
-### "Scout calendar feed URL?"
+### "Calendar feed URL?"
 ```bash
-cheese-brain search "scout calendar"
-# Returns: Scouts Troop 725G contact with Band.us ICS feed URL + token
+cheese-brain search "calendar feed"
+# Returns: Contact entity with ICS feed URL + location details
 ```
 
 ### "What projects are shipped?"
@@ -192,15 +192,15 @@ Each entity has:
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
-  "title": "Gabby Gmail Monitor",
+  "title": "Email Monitor Project",
   "category": "project",
   "tags": ["automation", "nodejs", "gmail", "calendar", "telegram", "shipped"],
   "data": {
-    "repo": "https://github.com/mhugo22/gabby-gmail",
-    "path": "/Users/sloth/.openclaw/workspace/gabby-gmail/",
+    "repo": "https://github.com/username/email-monitor",
+    "path": "/path/to/workspace/email-monitor/",
     "schedule": "7am, 1pm, 5pm, 9pm CST",
     "run_command": "node process.js",
-    "telegram_channel": "-1003769758774"
+    "telegram_channel": "-100XXXXXXXXXX"
   },
   "created_at": "2026-02-17T06:55:00Z",
   "updated_at": "2026-02-17T08:30:00Z"
