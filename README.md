@@ -113,15 +113,24 @@ cheese-brain list --tags security,webapp
 ### 🔄 Backup & Restore
 
 ```bash
-# Export to JSON
+# Export to JSON (human-readable)
 cheese-brain export backup.json
 
-# Restore from backup
-cheese-brain restore backup.json
+# Export to Parquet (2-9x smaller)
+cheese-brain export backup.parquet --format parquet
 
-# Automated daily backups (cron)
-0 2 * * * cheese-brain export ~/backups/$(date +\%Y-\%m-\%d).json
+# Restore from backup (auto-detects format)
+cheese-brain restore-backup backup.json
+cheese-brain restore-backup backup.parquet
+
+# Automated daily backups
+# See BACKUP_RECOVERY.md for full setup guide
 ```
+
+**Parquet vs JSON:**
+- Parquet: 2-9x smaller (scales with data size), binary format
+- JSON: Human-readable, easier debugging
+- Both: Same fidelity, lossless roundtrip
 
 ### 🤖 AI Agent Integration
 

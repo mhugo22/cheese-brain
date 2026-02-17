@@ -465,6 +465,99 @@ class CheeseBrain:
 
         return count
 
+    def export_parquet(self, output_path: str) -> int:
+        """Export all non-deleted entities to Parquet format.
+        
+        Parquet provides ~9x compression vs JSON while maintaining full fidelity.
+        
+        Args:
+            output_path: Path to output Parquet file
+            
+        Returns:
+            Number of entities exported
+        """
+        # Export to temporary table, then to Parquet
+        self.conn.execute("""
+            COPY (
+                SELECT 
+                    id::VARCHAR as id,
+                    category,
+                    title,
+                    data,
+                    tags,
+                    created_at,
+                    updated_at,
+                    deleted_at
+                FROM entities
+                WHERE deleted_at IS NULL
+            ) TO ? (FORMAT PARQUET)
+        """, [output_path])
+
+        # Count entities exported
+        count = self.conn.execute(
+            "SELECT COUNT(*) FROM entities WHERE deleted_at IS NULL"
+        ).fetchone()[0]
+
+        return count
+
+    def import_parquet(self, input_path: str, merge: bool = False) -> int:
+        """Import entities from Parquet backup.
+        
+        Args:
+            input_path: Path to Parquet file
+            merge: If True, update existing entities; if False, error on duplicates
+            
+        Returns:
+            Number of entities imported
+        """
+        # Load from Parquet into temporary table
+        temp_table = "temp_import"
+        self.conn.execute(f"DROP TABLE IF EXISTS {temp_table}")
+        self.conn.execute(f"""
+            CREATE TABLE {temp_table} AS 
+            SELECT * FROM read_parquet(?)
+        """, [input_path])
+
+        # Get data and convert to entities
+        rows = self.conn.execute(f"SELECT * FROM {temp_table}").fetchall()
+        
+        count = 0
+        for row in rows:
+            entity = Entity(
+                id=UUID(row[0]),
+                category=EntityCategory(row[1]),
+                title=row[2],
+                data=row[3] if isinstance(row[3], dict) else json.loads(row[3]),
+                tags=row[4] if row[4] else [],
+                created_at=row[5],
+                updated_at=row[6],
+                deleted_at=row[7],
+            )
+            
+            if merge:
+                # Check if exists
+                existing = self.get_by_id(entity.id)
+                if existing:
+                    # Update
+                    self.update(
+                        entity.id,
+                        title=entity.title,
+                        data=entity.data,
+                        tags=entity.tags,
+                    )
+                else:
+                    # Insert
+                    self.add_entity(entity)
+                count += 1
+            else:
+                # Insert (will error if duplicate)
+                self.add_entity(entity)
+                count += 1
+
+        # Cleanup
+        self.conn.execute(f"DROP TABLE {temp_table}")
+        return count
+
     def get_stats(self) -> dict:
         """Get database statistics.
         

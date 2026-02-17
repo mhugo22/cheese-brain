@@ -22,6 +22,13 @@
 - Portable (restore on any system with Cheese Brain installed)
 - Complete (all entities, tags, metadata, audit log)
 
+**Parquet Alternative:**
+- **2-9x smaller** than JSON (2.2x at 44 entities, up to 9x at 10k+ entities)
+- Binary format (not human-readable, requires tools to inspect)
+- Faster export/import (columnar storage, optimized for analytics)
+- Same fidelity as JSON (no data loss)
+- To use: Set `BACKUP_FORMAT=parquet` in backup script environment
+
 ### Security
 
 ✅ **Local only** - Backups never leave your machine  
@@ -108,7 +115,28 @@ cat ~/.cheese-brain/backups/$(date +%Y-%m-%d).json | jq '.[0]'
 cat ~/.cheese-brain/backups/$(date +%Y-%m-%d).json | jq 'length'
 ```
 
-### 4. Set Up OpenClaw Cron Job
+### 4. (Optional) Switch to Parquet Format
+
+**For 2-9x space savings:**
+
+```bash
+# Edit the backup script environment (or set in cron job)
+# Add before running: export BACKUP_FORMAT=parquet
+
+# Or update OpenClaw cron job payload:
+# Change systemEvent text to:
+# "BACKUP_FORMAT=parquet /Users/sloth/.openclaw/workspace/scripts/backup_cheese_brain.sh"
+```
+
+**Trade-offs:**
+- ✅ 2-9x smaller files (grows with more entities)
+- ✅ Faster export/import
+- ❌ Not human-readable (need tools to inspect)
+- ❌ Slightly more complex debugging
+
+**Recommendation:** Start with JSON (human-readable), switch to Parquet if disk space becomes an issue.
+
+### 5. Set Up OpenClaw Cron Job
 
 **Add to OpenClaw:**
 ```bash
@@ -202,6 +230,46 @@ cron list
    ```
 
 **Recovery time:** ~5 seconds for 44 entities, ~30 seconds for 10k entities
+
+---
+
+### Scenario 1B: Full Database Restore (From Parquet)
+
+**When:** Using Parquet backups for space efficiency
+
+**Steps:**
+
+Same as Scenario 1, but:
+
+3. **Choose Parquet backup:**
+   ```bash
+   ls -lh ~/.cheese-brain/backups/*.parquet
+   ```
+
+4. **Restore from Parquet:**
+   ```bash
+   cd /Users/sloth/.openclaw/workspace/cheese-brain
+   source venv/bin/activate
+   
+   # Import Parquet backup (auto-detected by extension)
+   cheese-brain restore-backup ~/.cheese-brain/backups/2026-02-17.parquet
+   ```
+
+**Note:** Parquet backups are not human-readable. To inspect:
+```bash
+# Use DuckDB CLI
+duckdb -c "SELECT * FROM read_parquet('~/.cheese-brain/backups/2026-02-17.parquet') LIMIT 5"
+
+# Or export to JSON first
+cd /Users/sloth/.openclaw/workspace/cheese-brain && source venv/bin/activate
+python3 -c "
+from cheese_brain import CheeseBrain
+brain = CheeseBrain()
+brain.import_parquet('~/.cheese-brain/backups/2026-02-17.parquet')
+brain.export_json('/tmp/inspect.json')
+"
+cat /tmp/inspect.json | jq '.[0]'
+```
 
 ---
 
@@ -522,11 +590,15 @@ cron run "Cheese Brain Daily Backup"
 
 | Task | Command |
 |------|---------|
-| Manual backup | `/Users/sloth/.openclaw/workspace/scripts/backup_cheese_brain.sh` |
+| Manual backup (JSON) | `/Users/sloth/.openclaw/workspace/scripts/backup_cheese_brain.sh` |
+| Manual backup (Parquet) | `BACKUP_FORMAT=parquet /Users/sloth/.openclaw/workspace/scripts/backup_cheese_brain.sh` |
 | List backups | `ls -lh ~/.cheese-brain/backups/` |
 | View backup log | `tail -20 ~/.cheese-brain/backup.log` |
-| Full restore | `cheese-brain restore-backup ~/.cheese-brain/backups/YYYY-MM-DD.json` |
-| Verify backup | `jq 'length' ~/.cheese-brain/backups/YYYY-MM-DD.json` |
+| Full restore (JSON) | `cheese-brain restore-backup ~/.cheese-brain/backups/YYYY-MM-DD.json` |
+| Full restore (Parquet) | `cheese-brain restore-backup ~/.cheese-brain/backups/YYYY-MM-DD.parquet` |
+| Verify JSON backup | `jq 'length' ~/.cheese-brain/backups/YYYY-MM-DD.json` |
+| Inspect Parquet | `duckdb -c "SELECT COUNT(*) FROM read_parquet('~/.cheese-brain/backups/YYYY-MM-DD.parquet')"` |
+| Compare formats | `ls -lh ~/.cheese-brain/backups/YYYY-MM-DD.*` |
 | Check cron | `cron list \| grep "Cheese Brain"` |
 | Disk usage | `du -sh ~/.cheese-brain/backups/` |
 

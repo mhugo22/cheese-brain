@@ -266,13 +266,21 @@ def restore(ctx, entity_id):
 
 @main.command()
 @click.argument("output_path", type=click.Path())
+@click.option("--format", type=click.Choice(["json", "parquet"], case_sensitive=False), default="json", help="Export format (json or parquet)")
 @click.pass_context
-def export(ctx, output_path):
-    """Export all entities to JSON."""
+def export(ctx, output_path, format):
+    """Export all entities to JSON or Parquet format.
+    
+    Parquet format provides ~9x compression vs JSON.
+    """
     brain = ctx.obj["brain"]
 
-    count = brain.export_json(output_path)
-    console.print(f"✅ Exported {count} entities to {output_path}", style="green")
+    if format.lower() == "parquet":
+        count = brain.export_parquet(output_path)
+        console.print(f"✅ Exported {count} entities to {output_path} (Parquet format)", style="green")
+    else:
+        count = brain.export_json(output_path)
+        console.print(f"✅ Exported {count} entities to {output_path}", style="green")
 
 
 @main.command()
@@ -280,12 +288,20 @@ def export(ctx, output_path):
 @click.option("--merge", is_flag=True, help="Update existing entities instead of erroring")
 @click.pass_context
 def restore_backup(ctx, input_path, merge):
-    """Import entities from JSON backup."""
+    """Import entities from JSON or Parquet backup.
+    
+    Format is auto-detected based on file extension (.json or .parquet).
+    """
     brain = ctx.obj["brain"]
 
     try:
-        count = brain.import_json(input_path, merge=merge)
-        console.print(f"✅ Imported {count} entities from {output_path}", style="green")
+        # Auto-detect format from file extension
+        if input_path.endswith('.parquet'):
+            count = brain.import_parquet(input_path, merge=merge)
+            console.print(f"✅ Imported {count} entities from {input_path} (Parquet format)", style="green")
+        else:
+            count = brain.import_json(input_path, merge=merge)
+            console.print(f"✅ Imported {count} entities from {input_path}", style="green")
     except Exception as e:
         console.print(f"Error: {e}", style="red")
 

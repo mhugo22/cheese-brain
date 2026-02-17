@@ -45,8 +45,9 @@ htmlcov/
 
 # Personal data (never commit!)
 *.personal.json
-backups/personal/
+backups/  # All backup exports (JSON/Parquet contain sensitive data)
 data/private/
+exports/  # If user decides to export here later
 
 # OS
 .DS_Store
