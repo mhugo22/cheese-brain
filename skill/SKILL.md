@@ -234,6 +234,19 @@ Each entity has:
 - **Backup/recovery guide:** `BACKUP_RECOVERY.md` in repo
 - **FTS guide:** `FTS.md` in repo
 - **Performance analysis:** `PERFORMANCE_ANALYSIS.md` in repo
+- **Security:** `SECURITY.md` in repo
+
+## Security Features
+
+- **File permissions:** Database/backups auto-secured (`0600` owner-only)
+- **Sensitive redaction:** `api_key`, `token`, `password` auto-hidden (use `--reveal` to show)
+- **Encrypted exports:** `cheese-brain export --encrypt` for password-protected backups
+- **Data validation:** Max 1MB per entity, max 10 nesting levels, SQL injection protection
+
+**Best practice:** Don't store secrets in plain text. Use password managers (1Password, Bitwarden) and reference them:
+```json
+{"api_key_location": "1Password: OpenAI API", "notes": "Retrieve from vault"}
+```
 
 ## Tips for Effective Use
 

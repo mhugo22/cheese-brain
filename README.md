@@ -192,6 +192,36 @@ brain.add_entity(
 
 ---
 
+## 🔒 Security
+
+Cheese Brain includes multiple security layers:
+
+### 🗂️ File Permissions
+Database and backups automatically secured with owner-only permissions (`0600`)
+
+### 🏷️ Sensitive Field Redaction
+Auto-redacts `password`, `api_key`, `token`, `secret` fields in output
+```bash
+cheese-brain get <id>         # Redacted by default
+cheese-brain get <id> --reveal  # Show real values
+```
+
+### 🔐 Encrypted Backups
+Password-protect export files
+```bash
+cheese-brain export backup.json --encrypt
+cheese-brain restore-backup backup.json  # Auto-detects encryption
+```
+
+### 🛡️ Data Validation
+- Max 1MB per entity
+- Max 10 levels of nesting
+- SQL injection protection (parameterized queries)
+
+**[Full Security Documentation →](SECURITY.md)**
+
+---
+
 ## Architecture
 
 ```

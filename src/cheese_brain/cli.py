@@ -64,9 +64,12 @@ def add(ctx, category, title, tags, data):
 @click.option("--since", help="Filter by date (YYYY-MM-DD)")
 @click.option("--limit", default=50, help="Maximum results")
 @click.option("--format", "output_format", type=click.Choice(["table", "json"]), default="table")
+@click.option("--reveal", is_flag=True, help="Show sensitive field values in JSON output")
 @click.pass_context
-def search(ctx, query, category, tags, since, limit, output_format):
+def search(ctx, query, category, tags, since, limit, output_format, reveal):
     """Search entities by keyword."""
+    from cheese_brain.redaction import redact_dict
+    
     brain = ctx.obj["brain"]
 
     # Parse tags
@@ -85,7 +88,11 @@ def search(ctx, query, category, tags, since, limit, output_format):
     )
 
     if output_format == "json":
-        output = [e.model_dump() for e in results]
+        output = []
+        for e in results:
+            entity_dict = e.model_dump()
+            entity_dict["data"] = redact_dict(e.data, reveal=reveal)
+            output.append(entity_dict)
         click.echo(json.dumps(output, indent=2, default=str))
     else:
         if not results:
@@ -115,12 +122,15 @@ def search(ctx, query, category, tags, since, limit, output_format):
 @click.option("--category", help="Filter by category")
 @click.option("--limit", default=50, help="Maximum results")
 @click.option("--format", "output_format", type=click.Choice(["table", "json"]), default="table")
+@click.option("--reveal", is_flag=True, help="Show sensitive field values in JSON output")
 @click.pass_context
-def fts(ctx, query, category, limit, output_format):
+def fts(ctx, query, category, limit, output_format, reveal):
     """Full-text search with BM25 ranking (faster, relevance-ranked).
     
     Requires FTS index. Create with: cheese-brain create-fts-index
     """
+    from cheese_brain.redaction import redact_dict
+    
     brain = ctx.obj["brain"]
 
     try:
@@ -135,7 +145,11 @@ def fts(ctx, query, category, limit, output_format):
         return
 
     if output_format == "json":
-        output = [{"entity": e.model_dump(), "score": score} for e, score in results]
+        output = []
+        for e, score in results:
+            entity_dict = e.model_dump()
+            entity_dict["data"] = redact_dict(e.data, reveal=reveal)
+            output.append({"entity": entity_dict, "score": score})
         click.echo(json.dumps(output, indent=2, default=str))
     else:
         if not results:
@@ -240,9 +254,12 @@ def list(ctx, category, limit, deleted, output_format):
 @main.command()
 @click.argument("entity_id", type=str)
 @click.option("--format", "output_format", type=click.Choice(["table", "json"]), default="table")
+@click.option("--reveal", is_flag=True, help="Show sensitive field values (default: redacted)")
 @click.pass_context
-def get(ctx, entity_id, output_format):
+def get(ctx, entity_id, output_format, reveal):
     """Get an entity by ID."""
+    from cheese_brain.redaction import redact_dict
+    
     brain = ctx.obj["brain"]
 
     try:
@@ -251,8 +268,13 @@ def get(ctx, entity_id, output_format):
             console.print(f"Entity {entity_id} not found.", style="red")
             return
 
+        # Redact sensitive data unless --reveal is set
+        display_data = redact_dict(entity.data, reveal=reveal)
+
         if output_format == "json":
-            click.echo(json.dumps(entity.model_dump(), indent=2, default=str))
+            entity_dict = entity.model_dump()
+            entity_dict["data"] = display_data
+            click.echo(json.dumps(entity_dict, indent=2, default=str))
         else:
             console.print(f"\n[bold]🧀 {entity.title}[/bold]")
             console.print(f"ID: {entity.id}", style="dim")
@@ -261,9 +283,11 @@ def get(ctx, entity_id, output_format):
             console.print(f"Created: {entity.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
             console.print(f"Updated: {entity.updated_at.strftime('%Y-%m-%d %H:%M:%S')}")
             
-            if entity.data:
+            if display_data:
                 console.print("\n[bold]Data:[/bold]")
-                console.print(json.dumps(entity.data, indent=2))
+                console.print(json.dumps(display_data, indent=2))
+                if not reveal:
+                    console.print("\n[dim]Use --reveal to show redacted values[/dim]")
 
     except ValueError as e:
         console.print(str(e), style="red")
@@ -342,20 +366,53 @@ def restore(ctx, entity_id):
 @main.command()
 @click.argument("output_path", type=click.Path())
 @click.option("--format", type=click.Choice(["json", "parquet"], case_sensitive=False), default="json", help="Export format (json or parquet)")
+@click.option("--encrypt", is_flag=True, help="Encrypt export with passphrase (prompts for password)")
 @click.pass_context
-def export(ctx, output_path, format):
+def export(ctx, output_path, format, encrypt):
     """Export all entities to JSON or Parquet format.
     
     Parquet format provides ~9x compression vs JSON.
+    Use --encrypt to password-protect the export file.
     """
+    import tempfile
+    from cheese_brain.encryption import encrypt_file
+    
     brain = ctx.obj["brain"]
-
-    if format.lower() == "parquet":
-        count = brain.export_parquet(output_path)
-        console.print(f"✅ Exported {count} entities to {output_path} (Parquet format)", style="green")
+    
+    # If encrypting, export to temp file first
+    if encrypt:
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=f".{format}")
+        export_path = temp_file.name
+        temp_file.close()
     else:
-        count = brain.export_json(output_path)
-        console.print(f"✅ Exported {count} entities to {output_path}", style="green")
+        export_path = output_path
+
+    # Export to file (or temp file if encrypting)
+    if format.lower() == "parquet":
+        count = brain.export_parquet(export_path)
+    else:
+        count = brain.export_json(export_path)
+    
+    # Encrypt if requested
+    if encrypt:
+        passphrase = click.prompt("Encryption passphrase", hide_input=True)
+        confirm = click.prompt("Confirm passphrase", hide_input=True)
+        
+        if passphrase != confirm:
+            console.print("❌ Passphrases don't match", style="red")
+            os.unlink(export_path)
+            return
+        
+        try:
+            encrypt_file(export_path, output_path, passphrase)
+            os.unlink(export_path)  # Delete temp file
+            console.print(f"✅ Exported and encrypted {count} entities to {output_path}", style="green")
+        except Exception as e:
+            console.print(f"❌ Encryption failed: {e}", style="red")
+            os.unlink(export_path)
+            return
+    else:
+        console.print(f"✅ Exported {count} entities to {output_path} ({format} format)", style="green")
 
 
 @main.command()
@@ -366,19 +423,50 @@ def restore_backup(ctx, input_path, merge):
     """Import entities from JSON or Parquet backup.
     
     Format is auto-detected based on file extension (.json or .parquet).
+    Encrypted backups are automatically detected and prompt for passphrase.
     """
+    import tempfile
+    from cheese_brain.encryption import is_encrypted, decrypt_file
+    
     brain = ctx.obj["brain"]
+    actual_path = input_path
 
     try:
-        # Auto-detect format from file extension
-        if input_path.endswith('.parquet'):
-            count = brain.import_parquet(input_path, merge=merge)
+        # Check if file is encrypted
+        if is_encrypted(input_path):
+            console.print("🔒 Encrypted backup detected", style="yellow")
+            passphrase = click.prompt("Decryption passphrase", hide_input=True)
+            
+            # Decrypt to temp file
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".decrypted")
+            temp_file.close()
+            
+            try:
+                decrypt_file(input_path, temp_file.name, passphrase)
+                actual_path = temp_file.name
+                console.print("✅ Decryption successful", style="green")
+            except ValueError as e:
+                console.print(f"❌ {e}", style="red")
+                os.unlink(temp_file.name)
+                return
+        
+        # Auto-detect format from file extension (or decrypted content)
+        if actual_path.endswith('.parquet') or input_path.endswith('.parquet'):
+            count = brain.import_parquet(actual_path, merge=merge)
             console.print(f"✅ Imported {count} entities from {input_path} (Parquet format)", style="green")
         else:
-            count = brain.import_json(input_path, merge=merge)
+            count = brain.import_json(actual_path, merge=merge)
             console.print(f"✅ Imported {count} entities from {input_path}", style="green")
+        
+        # Clean up temp file if we decrypted
+        if actual_path != input_path and os.path.exists(actual_path):
+            os.unlink(actual_path)
+            
     except Exception as e:
         console.print(f"Error: {e}", style="red")
+        # Clean up temp file on error
+        if actual_path != input_path and os.path.exists(actual_path):
+            os.unlink(actual_path)
 
 
 @main.command()
@@ -413,13 +501,13 @@ def tags(ctx, limit):
     brain = ctx.obj["brain"]
 
     # Query tag frequency
-    results = brain.conn.execute(f"""
+    results = brain.conn.execute("""
         SELECT tag, COUNT(*) as cnt
         FROM (SELECT unnest(tags) as tag FROM entities WHERE deleted_at IS NULL)
         GROUP BY tag
         ORDER BY cnt DESC
-        LIMIT {limit}
-    """).fetchall()
+        LIMIT ?
+    """, [limit]).fetchall()
 
     if not results:
         console.print("No tags found.", style="yellow")

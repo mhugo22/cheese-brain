@@ -2,12 +2,13 @@
 Data models for Cheese Brain entities.
 """
 
+import json
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, field_serializer
+from pydantic import BaseModel, Field, field_serializer, field_validator
 
 
 class EntityCategory(str, Enum):
@@ -48,6 +49,49 @@ class Entity(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     deleted_at: Optional[datetime] = None
+
+    @field_validator('data')
+    @classmethod
+    def validate_data_size_and_depth(cls, v: dict[str, Any]) -> dict[str, Any]:
+        """Validate data field size and nesting depth.
+        
+        Limits:
+        - Max 1MB serialized size
+        - Max 10 levels of nesting
+        
+        Raises:
+            ValueError: If validation fails
+        """
+        # Check serialized size
+        serialized = json.dumps(v, default=str)
+        size_bytes = len(serialized.encode('utf-8'))
+        max_bytes = 1 * 1024 * 1024  # 1MB
+        
+        if size_bytes > max_bytes:
+            raise ValueError(
+                f"Data field too large: {size_bytes / 1024:.1f}KB "
+                f"(max {max_bytes / 1024:.0f}KB)"
+            )
+        
+        # Check nesting depth
+        def get_depth(obj: Any, current_depth: int = 0) -> int:
+            if current_depth > 10:
+                raise ValueError("Data field nesting too deep (max 10 levels)")
+            
+            if isinstance(obj, dict):
+                return max(
+                    (get_depth(val, current_depth + 1) for val in obj.values()),
+                    default=current_depth
+                )
+            elif isinstance(obj, list):
+                return max(
+                    (get_depth(item, current_depth + 1) for item in obj),
+                    default=current_depth
+                )
+            return current_depth
+        
+        get_depth(v)
+        return v
 
     @field_serializer('id', 'created_at', 'updated_at', 'deleted_at')
     def serialize_special_types(self, value):

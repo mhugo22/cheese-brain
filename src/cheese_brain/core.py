@@ -4,6 +4,7 @@ Core CheeseBrain class - main interface to the knowledge base.
 
 import duckdb
 import json
+import os
 from pathlib import Path
 from typing import Optional
 from datetime import datetime, timezone
@@ -23,7 +24,16 @@ class CheeseBrain:
         """
         self.db_path = Path(db_path).expanduser()
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Secure directory permissions (owner-only)
+        os.chmod(self.db_path.parent, 0o700)
+        
         self.conn = duckdb.connect(str(self.db_path))
+        
+        # Secure database file permissions (owner-only read/write)
+        if self.db_path.exists():
+            os.chmod(self.db_path, 0o600)
+        
         self._init_schema()
 
     def _init_schema(self) -> None:
@@ -487,6 +497,9 @@ class CheeseBrain:
 
         with open(output_path, "w") as f:
             json.dump(output, f, indent=2, default=str)
+        
+        # Secure export file permissions (owner-only read/write)
+        os.chmod(output_path, 0o600)
 
         return len(output)
 
@@ -556,6 +569,9 @@ class CheeseBrain:
                 WHERE deleted_at IS NULL
             ) TO ? (FORMAT PARQUET)
         """, [output_path])
+        
+        # Secure export file permissions (owner-only read/write)
+        os.chmod(output_path, 0o600)
 
         # Count entities exported
         count = self.conn.execute(
