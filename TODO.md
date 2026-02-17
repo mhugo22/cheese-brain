@@ -77,17 +77,19 @@
   - Vector similarity search for "things like X"
 
 ### Backup & Export
-- [ ] Automated daily JSON exports
-  - Cron job: export to `~/.cheese-brain/backups/YYYY-MM-DD.json`
-  - Retention: keep last 30 days
-  - Automated cleanup of old backups
+- [x] **Automated daily JSON exports** ✅
+  - Cron job: runs daily at 2:00 AM CST
+  - Location: `~/.cheese-brain/backups/YYYY-MM-DD.json`
+  - Retention: 30 days (automatic cleanup)
+  - Script: `/Users/sloth/.openclaw/workspace/scripts/backup_cheese_brain.sh`
+  - Log: `~/.cheese-brain/backup.log`
+  - First backup: 44 entities, 32KB
+  - Documentation: `BACKUP_RECOVERY.md` (12KB with full recovery procedures)
 - [ ] Parquet export support (9x compression)
   - Add `cheese-brain export --format parquet` command
   - Benchmark file sizes vs JSON
-- [ ] Git-friendly exports to workspace
-  - Export to `/Users/sloth/.openclaw/workspace/cheese-brain/exports/`
-  - Git commit + push automation
-  - Version control history of knowledge base
+- [ ] ~~Git-friendly exports to workspace~~ (NOT SAFE - repo is public, sensitive data in DB)
+  - Alternative: Manual weekly copy to private location (Time Machine, external drive)
 
 ### CLI Enhancements
 - [ ] Bulk import from JSON/CSV
