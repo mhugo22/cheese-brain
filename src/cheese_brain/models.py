@@ -2,12 +2,12 @@
 Data models for Cheese Brain entities.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class EntityCategory(str, Enum):
@@ -45,21 +45,20 @@ class Entity(BaseModel):
     title: str = Field(min_length=1, max_length=500)
     data: dict[str, Any] = Field(default_factory=dict)
     tags: list[str] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     deleted_at: Optional[datetime] = None
 
-    class Config:
-        """Pydantic configuration."""
-
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat(),
             UUID: lambda v: str(v),
         }
+    )
 
     def mark_deleted(self) -> None:
         """Soft delete this entity."""
-        self.deleted_at = datetime.utcnow()
+        self.deleted_at = datetime.now(timezone.utc)
 
     def is_deleted(self) -> bool:
         """Check if entity is soft-deleted."""
@@ -74,12 +73,11 @@ class AuditLog(BaseModel):
     action: str  # 'create', 'update', 'delete'
     old_data: Optional[dict[str, Any]] = None
     new_data: dict[str, Any]
-    changed_at: datetime = Field(default_factory=datetime.utcnow)
+    changed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    class Config:
-        """Pydantic configuration."""
-
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat(),
             UUID: lambda v: str(v),
         }
+    )

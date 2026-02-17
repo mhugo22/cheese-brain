@@ -10,5 +10,6 @@ __author__ = "Matt H & Cheese"
 
 from cheese_brain.core import CheeseBrain
 from cheese_brain.models import Entity, EntityCategory
+from cheese_brain.cli import main
 
-__all__ = ["CheeseBrain", "Entity", "EntityCategory"]
+__all__ = ["CheeseBrain", "Entity", "EntityCategory", "main"]
