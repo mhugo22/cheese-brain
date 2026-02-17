@@ -6,6 +6,7 @@
 [![Coverage](https://img.shields.io/codecov/c/github/mhugo22/cheese-brain)](https://codecov.io/gh/mhugo22/cheese-brain)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![ClawHub](https://img.shields.io/badge/ClawHub-cheese--brain-orange)](https://clawhub.com/skills/cheese-brain)
 
 ---
 
@@ -26,15 +27,40 @@ You've shipped projects, met people, solved problems, and made decisions. But ca
 
 ## Quick Start
 
+### Python/CLI Installation
+
 ```bash
-# Install
-pip install cheese-brain
+# Clone and install
+git clone https://github.com/mhugo22/cheese-brain.git
+cd cheese-brain
+python3 -m venv venv
+source venv/bin/activate  # or venv\Scripts\activate on Windows
+pip install -e .
 
-# Initialize database
-cheese-brain init
+# Verify installation
+cheese-brain stats
+```
 
+### OpenClaw Skill Installation
+
+For OpenClaw users (AI agent framework):
+
+```bash
+# Install the skill from ClawHub
+clawhub install cheese-brain
+
+# Your AI agent can now query Cheese Brain autonomously
+```
+
+**Skill page:** https://clawhub.com/skills/cheese-brain
+
+### Basic Usage
+
+```bash
 # Add your first entity
-cheese-brain add project "SketchySkills" \
+cheese-brain add \
+  --title "SketchySkills" \
+  --category project \
   --tags "security,webapp" \
   --data '{"url": "https://sketchyskills.vercel.app", "status": "shipped"}'
 
