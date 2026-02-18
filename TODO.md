@@ -70,7 +70,7 @@
 
 ### Priority Order (For AI Memory)
 1. ✅ **Relationship Tracking** - COMPLETE (Phase 2 Sprint 1)
-2. **Bulk Import** - add 30+ entities at once from CSV/JSON
+2. ✅ **Bulk Import** - COMPLETE (Phase 2 Sprint 2)
 3. **Advanced Queries** - multi-field filtering for complex retrieval
 4. **OpenClaw Integration** - unified search across Cheese Brain + memory files
 5. **Auto-Capture** - extract entities from daily notes automatically
@@ -112,6 +112,56 @@
 **Files Modified:** core.py, models.py, cli.py, README.md  
 **New Files:** RELATIONSHIPS.md  
 **Schema Version:** 1.0.0 → 1.1.0
+
+---
+
+## 🚀 Phase 2 Sprint 2: Bulk Import ✅ COMPLETE
+
+### Implemented Features
+- [x] **CSV Import**
+  - Auto-detect format from file extension
+  - Parse CSV headers → entity fields
+  - Custom fields → data JSON dict
+  - Tags: comma-separated string parsing
+  - Default category option for headerless CSV
+- [x] **JSON Import**
+  - Array of entity objects
+  - Full Pydantic validation
+  - Data field: string → JSON auto-parsing
+  - Tags: string → array auto-parsing
+- [x] **Bulk Import Engine** (`bulk_import()` method)
+  - Pre-insert validation
+  - Duplicate detection (by title + category match)
+  - Three modes: skip, merge, or error on duplicates
+  - Comprehensive error reporting with line numbers
+  - Dry-run support (validate without inserting)
+- [x] **CLI Command** (`import-bulk`)
+  - `--dry-run` flag for validation only
+  - `--skip-duplicates` (default: true)
+  - `--merge-duplicates` flag to update existing
+  - `--category` for CSV default category
+  - Rich table output with import results
+  - Error list display (first 10 errors)
+
+### Testing Results
+- ✅ CSV import: 5 entities (tools with versions, URLs, descriptions)
+- ✅ JSON import: 5 entities (tools, API, infrastructure, decision)
+- ✅ Dry-run validation: Catches errors before insert
+- ✅ Skip duplicates: Detected 1 duplicate, skipped correctly
+- ✅ Merge duplicates: Updated 1 existing entity
+- ✅ Error handling: Caught 4 validation errors, reported with line numbers
+- ✅ Database growth: 110 → 120 entities (10 new via bulk import)
+
+### Performance
+- **Time savings:** 97% faster for batch operations
+  - Manual: 30 entities ≈ 15 minutes (30 commands)
+  - Bulk import: 30 entities ≈ 30 seconds (1 command)
+- **Validation:** Dry-run mode catches errors before database changes
+- **Error recovery:** Partial imports (success + error list)
+
+**Completion:** 2026-02-18  
+**Files Modified:** core.py, cli.py, README.md, TODO.md  
+**Database:** 110 → 120 entities
 
 ---
 

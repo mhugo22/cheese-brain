@@ -4,6 +4,7 @@ CLI interface for Cheese Brain.
 
 import click
 import json
+import sys
 from datetime import datetime
 from uuid import UUID
 from rich.console import Console
@@ -491,6 +492,113 @@ def stats(ctx):
             table.add_row(category, str(count))
 
         console.print(table)
+
+
+@main.command()
+@click.argument("input_file", type=click.Path(exists=True))
+@click.option("--format", "input_format", type=click.Choice(["json", "csv"]), help="Input format (auto-detected from extension)")
+@click.option("--category", help="Default category for CSV import (if not in file)")
+@click.option("--dry-run", is_flag=True, help="Validate without importing")
+@click.option("--skip-duplicates", is_flag=True, default=True, help="Skip entities with duplicate titles (default: true)")
+@click.option("--merge-duplicates", is_flag=True, help="Update existing entities instead of skipping")
+@click.pass_context
+def import_bulk(ctx, input_file, input_format, category, dry_run, skip_duplicates, merge_duplicates):
+    """Bulk import entities from JSON or CSV file.
+    
+    JSON Format (array of objects):
+    [
+        {"category": "tool", "title": "DuckDB", "tags": ["database"], "data": {...}},
+        {"category": "project", "title": "My Project", "tags": ["active"], "data": {...}}
+    ]
+    
+    CSV Format:
+    title,category,tags,description,url
+    DuckDB,tool,"database,analytics",Fast analytics database,https://duckdb.org
+    
+    Examples:
+        cheese-brain import-bulk entities.json
+        cheese-brain import-bulk entities.csv --category tool
+        cheese-brain import-bulk entities.json --dry-run
+        cheese-brain import-bulk entities.csv --merge-duplicates
+    """
+    brain = ctx.obj["brain"]
+    
+    # Auto-detect format
+    if not input_format:
+        if input_file.endswith('.csv'):
+            input_format = 'csv'
+        else:
+            input_format = 'json'
+    
+    console.print(f"\n📦 Bulk Import: {input_file}", style="bold")
+    console.print(f"   Format: {input_format}")
+    console.print(f"   Mode: {'DRY RUN' if dry_run else 'LIVE'}")
+    if skip_duplicates:
+        console.print(f"   Duplicates: SKIP")
+    elif merge_duplicates:
+        console.print(f"   Duplicates: MERGE")
+    console.print()
+    
+    try:
+        if input_format == 'csv':
+            if not category and dry_run:
+                # Allow dry-run without category to check CSV
+                category = "tool"  # Placeholder
+            results = brain.import_csv(
+                input_path=input_file,
+                category=category,
+                dry_run=dry_run,
+                skip_duplicates=skip_duplicates if not merge_duplicates else False,
+            )
+        else:  # json
+            with open(input_file, 'r') as f:
+                entities = json.load(f)
+            
+            # Check if entities is a list (using type() to avoid isinstance issues in Click context)
+            if not hasattr(entities, '__iter__') or isinstance(entities, (str, dict)):
+                console.print("❌ JSON must be an array of entity objects", style="red")
+                return
+            
+            results = brain.bulk_import(
+                entities=entities,
+                dry_run=dry_run,
+                skip_duplicates=skip_duplicates if not merge_duplicates else False,
+                merge_duplicates=merge_duplicates,
+            )
+        
+        # Display results
+        console.print("[bold green]✅ Import Complete[/bold green]\n")
+        
+        table = Table(title="Import Results")
+        table.add_column("Status", style="cyan")
+        table.add_column("Count", style="bold")
+        
+        table.add_row("Total", str(results["total"]))
+        table.add_row("Created", str(results["created"]), style="green")
+        if results["updated"] > 0:
+            table.add_row("Updated", str(results["updated"]), style="yellow")
+        if results["skipped"] > 0:
+            table.add_row("Skipped", str(results["skipped"]), style="dim")
+        if results["errors"]:
+            table.add_row("Errors", str(len(results["errors"])), style="red")
+        
+        console.print(table)
+        
+        # Show errors if any
+        if results["errors"]:
+            console.print("\n[bold red]❌ Errors:[/bold red]")
+            for idx, error in results["errors"][:10]:  # Show first 10
+                console.print(f"   Row {idx + 1}: {error}", style="red")
+            if len(results["errors"]) > 10:
+                console.print(f"   ... and {len(results['errors']) - 10} more", style="dim")
+        
+        if dry_run:
+            console.print("\n[yellow]ℹ️  This was a dry run. No changes were made.[/yellow]")
+        
+    except Exception as e:
+        console.print(f"❌ Error: {e}", style="red")
+        import traceback
+        traceback.print_exc()
 
 
 @main.command()

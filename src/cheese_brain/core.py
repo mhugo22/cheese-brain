@@ -812,6 +812,173 @@ class CheeseBrain:
 
         return count
 
+    def bulk_import(
+        self,
+        entities: list[dict],
+        dry_run: bool = False,
+        skip_duplicates: bool = False,
+        merge_duplicates: bool = False,
+    ) -> dict:
+        """Bulk import entities with validation and dry-run support.
+        
+        Args:
+            entities: List of entity dicts (must have category, title at minimum)
+            dry_run: If True, validate but don't insert
+            skip_duplicates: If True, skip entities with duplicate titles
+            merge_duplicates: If True, update existing entities (by title match)
+            
+        Returns:
+            Dict with import results:
+            {
+                "total": int,
+                "created": int,
+                "updated": int,
+                "skipped": int,
+                "errors": [(index, error_message), ...]
+            }
+        """
+        results = {
+            "total": len(entities),
+            "created": 0,
+            "updated": 0,
+            "skipped": 0,
+            "errors": []
+        }
+        
+        for idx, item in enumerate(entities):
+            try:
+                # Validate required fields
+                if "category" not in item:
+                    results["errors"].append((idx, "Missing 'category' field"))
+                    continue
+                
+                if "title" not in item:
+                    results["errors"].append((idx, "Missing 'title' field"))
+                    continue
+                
+                # Parse data field if string
+                data = item.get("data", {})
+                if isinstance(data, str):
+                    try:
+                        data = json.loads(data)
+                    except json.JSONDecodeError:
+                        results["errors"].append((idx, f"Invalid JSON in data field: {data}"))
+                        continue
+                
+                # Parse tags if string
+                tags = item.get("tags", [])
+                if isinstance(tags, str):
+                    tags = [t.strip() for t in tags.split(",") if t.strip()]
+                
+                # Create entity object for validation
+                entity = Entity(
+                    category=EntityCategory(item["category"]),
+                    title=item["title"],
+                    data=data,
+                    tags=tags,
+                )
+                
+                # Check for duplicates (by title + category)
+                existing = self.search(
+                    query=item["title"],
+                    category=item["category"],
+                    limit=1
+                )
+                
+                if existing and existing[0].title.lower() == item["title"].lower():
+                    # Duplicate found
+                    if skip_duplicates:
+                        results["skipped"] += 1
+                        continue
+                    elif merge_duplicates:
+                        if not dry_run:
+                            self.update(
+                                existing[0].id,
+                                title=entity.title,
+                                data=entity.data,
+                                tags=entity.tags,
+                            )
+                        results["updated"] += 1
+                        continue
+                    else:
+                        results["errors"].append((idx, f"Duplicate title: {item['title']}"))
+                        continue
+                
+                # Insert new entity
+                if not dry_run:
+                    self.add_entity(entity)
+                results["created"] += 1
+                
+            except Exception as e:
+                results["errors"].append((idx, str(e)))
+        
+        return results
+
+    def import_csv(
+        self,
+        input_path: str,
+        category: Optional[str] = None,
+        dry_run: bool = False,
+        skip_duplicates: bool = True,
+    ) -> dict:
+        """Import entities from CSV file.
+        
+        CSV Format:
+          title,category,tags,description,<custom_fields...>
+        
+        Custom fields are added to the data dict.
+        
+        Args:
+            input_path: Path to CSV file
+            category: Default category if not in CSV (optional)
+            dry_run: If True, validate but don't insert
+            skip_duplicates: If True, skip entities with duplicate titles
+            
+        Returns:
+            Dict with import results (same as bulk_import)
+        """
+        import csv
+        
+        entities = []
+        
+        with open(input_path, "r") as f:
+            reader = csv.DictReader(f)
+            
+            for row in reader:
+                # Required: title
+                if "title" not in row or not row["title"]:
+                    continue
+                
+                # Category: from column or default
+                entity_category = row.get("category", category)
+                if not entity_category:
+                    continue
+                
+                # Tags: comma-separated string
+                tags = []
+                if "tags" in row and row["tags"]:
+                    tags = [t.strip() for t in row["tags"].split(",") if t.strip()]
+                
+                # Data: collect custom fields
+                data = {}
+                skip_fields = {"title", "category", "tags"}
+                for key, value in row.items():
+                    if key not in skip_fields and value:
+                        data[key] = value
+                
+                entities.append({
+                    "category": entity_category,
+                    "title": row["title"],
+                    "tags": tags,
+                    "data": data,
+                })
+        
+        return self.bulk_import(
+            entities=entities,
+            dry_run=dry_run,
+            skip_duplicates=skip_duplicates,
+        )
+
     def export_parquet(self, output_path: str) -> int:
         """Export all non-deleted entities to Parquet format.
         

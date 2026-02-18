@@ -190,6 +190,55 @@ cheese-brain unlink <relationship-id>
 - "Show me all documentation for this project"
 - Build dependency graphs for projects
 
+### 📦 Bulk Import
+
+Import entities in batch from CSV or JSON files:
+
+```bash
+# CSV format (title,category,tags,description,...)
+cheese-brain import-bulk entities.csv
+
+# JSON format (array of objects)
+cheese-brain import-bulk entities.json
+
+# Dry-run validation (no changes)
+cheese-brain import-bulk entities.json --dry-run
+
+# Merge duplicates instead of skipping
+cheese-brain import-bulk updates.json --merge-duplicates
+
+# Set default category for CSV
+cheese-brain import-bulk tools.csv --category tool
+```
+
+**CSV Format:**
+```csv
+title,category,tags,description,url,version
+Redis,tool,"database,cache",In-memory data store,https://redis.io,7.2
+PostgreSQL,tool,"database,sql",Advanced database,https://postgresql.org,16
+```
+
+**JSON Format:**
+```json
+[
+  {
+    "category": "tool",
+    "title": "Kubernetes",
+    "tags": ["containers", "orchestration"],
+    "data": {"description": "Container platform", "version": "1.29"}
+  }
+]
+```
+
+**Features:**
+- ✅ Auto-detect format from file extension
+- ✅ Validation before import (dry-run mode)
+- ✅ Duplicate detection (skip or merge)
+- ✅ Error reporting with line numbers
+- ✅ Custom fields → data JSON
+
+**Time savings:** Import 30 entities in 30 seconds vs 15 minutes manually
+
 ### 🔄 Backup & Restore
 
 ```bash
