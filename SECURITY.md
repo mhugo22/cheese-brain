@@ -41,7 +41,7 @@ $ cheese-brain get abc-123 --reveal
 Data:
 {
   "url": "https://api.example.com",
-  "api_key": "sk-proj-abc123...",
+  "api_key": "sk-example-abc123...",
   "timeout": 30
 }
 ```
@@ -154,7 +154,7 @@ results = conn.execute("""
 **DON'T store in plain text:**
 ```json
 {
-  "api_key": "sk-proj-abc123...",
+  "api_key": "sk-example-abc123...",
   "password": "my-password-123"
 }
 ```

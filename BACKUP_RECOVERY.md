@@ -57,7 +57,7 @@ graph LR
 
 ### Script Location
 
-**Path:** `/Users/sloth/.openclaw/workspace/scripts/backup_cheese_brain.sh`
+**Path:** `~/.openclaw/workspace/scripts/backup_cheese_brain.sh`
 
 **What it does:**
 1. Activates Cheese Brain virtual environment
@@ -75,27 +75,27 @@ graph LR
 ### 1. Verify Script is Executable
 
 ```bash
-ls -l /Users/sloth/.openclaw/workspace/scripts/backup_cheese_brain.sh
+ls -l ~/.openclaw/workspace/scripts/backup_cheese_brain.sh
 # Should show: -rwxr-xr-x (executable)
 ```
 
 If not executable:
 ```bash
-chmod +x /Users/sloth/.openclaw/workspace/scripts/backup_cheese_brain.sh
+chmod +x ~/.openclaw/workspace/scripts/backup_cheese_brain.sh
 ```
 
 ### 2. Test Manual Backup
 
 ```bash
 # Run backup script manually
-/Users/sloth/.openclaw/workspace/scripts/backup_cheese_brain.sh
+~/.openclaw/workspace/scripts/backup_cheese_brain.sh
 ```
 
 **Expected output:**
 ```
 [2026-02-17 09:30:45] Starting Cheese Brain backup...
-[2026-02-17 09:30:45] Exporting to /Users/sloth/.cheese-brain/backups/2026-02-17.json...
-✅ Exported 44 entities to /Users/sloth/.cheese-brain/backups/2026-02-17.json
+[2026-02-17 09:30:45] Exporting to ~/.cheese-brain/backups/2026-02-17.json...
+✅ Exported 44 entities to ~/.cheese-brain/backups/2026-02-17.json
 [2026-02-17 09:30:46] ✅ Backup successful: 44 entities, 128K
 [2026-02-17 09:30:46] Cleaning up backups older than 30 days...
 [2026-02-17 09:30:46] No old backups to delete
@@ -125,7 +125,7 @@ cat ~/.cheese-brain/backups/$(date +%Y-%m-%d).json | jq 'length'
 
 # Or update OpenClaw cron job payload:
 # Change systemEvent text to:
-# "BACKUP_FORMAT=parquet /Users/sloth/.openclaw/workspace/scripts/backup_cheese_brain.sh"
+# "BACKUP_FORMAT=parquet ~/.openclaw/workspace/scripts/backup_cheese_brain.sh"
 ```
 
 **Trade-offs:**
@@ -146,7 +146,7 @@ cron add \
   --schedule "0 2 * * *" \
   --timezone "America/Chicago" \
   --payload-kind "systemEvent" \
-  --payload-text "Run Cheese Brain backup: /Users/sloth/.openclaw/workspace/scripts/backup_cheese_brain.sh"
+  --payload-text "Run Cheese Brain backup: ~/.openclaw/workspace/scripts/backup_cheese_brain.sh"
 ```
 
 **Or manually add to `openclaw.json` cron section:**
@@ -160,7 +160,7 @@ cron add \
   },
   "payload": {
     "kind": "systemEvent",
-    "text": "Run Cheese Brain backup: /Users/sloth/.openclaw/workspace/scripts/backup_cheese_brain.sh"
+    "text": "Run Cheese Brain backup: ~/.openclaw/workspace/scripts/backup_cheese_brain.sh"
   },
   "sessionTarget": "main",
   "enabled": true
@@ -205,7 +205,7 @@ cron list
 
 4. **Restore from backup:**
    ```bash
-   cd /Users/sloth/.openclaw/workspace/cheese-brain
+   cd ~/.openclaw/workspace/cheese-brain
    source venv/bin/activate
    
    # Import backup (this recreates the database)
@@ -248,7 +248,7 @@ Same as Scenario 1, but:
 
 4. **Restore from Parquet:**
    ```bash
-   cd /Users/sloth/.openclaw/workspace/cheese-brain
+   cd ~/.openclaw/workspace/cheese-brain
    source venv/bin/activate
    
    # Import Parquet backup (auto-detected by extension)
@@ -261,7 +261,7 @@ Same as Scenario 1, but:
 duckdb -c "SELECT * FROM read_parquet('~/.cheese-brain/backups/2026-02-17.parquet') LIMIT 5"
 
 # Or export to JSON first
-cd /Users/sloth/.openclaw/workspace/cheese-brain && source venv/bin/activate
+cd ~/.openclaw/workspace/cheese-brain && source venv/bin/activate
 python3 -c "
 from cheese_brain import CheeseBrain
 brain = CheeseBrain()
@@ -283,7 +283,7 @@ cat /tmp/inspect.json | jq '.[0]'
    ```bash
    # Search backup files for entity
    grep -l "SketchySkills" ~/.cheese-brain/backups/*.json
-   # Returns: /Users/sloth/.cheese-brain/backups/2026-02-17.json
+   # Returns: ~/.cheese-brain/backups/2026-02-17.json
    ```
 
 2. **Extract entity from backup:**
@@ -375,7 +375,7 @@ cat /tmp/inspect.json | jq '.[0]'
 2. **Restore backups from Time Machine:**
    ```bash
    # Copy from Time Machine backup
-   cp -r /Volumes/TimeMachine/Backups/.../Users/sloth/.cheese-brain/backups ~/cheese-brain/
+   cp -r /Volumes/TimeMachine/Backups/...~/.cheese-brain/backups ~/cheese-brain/
    ```
 
 3. **Restore latest backup:**
@@ -485,16 +485,16 @@ done
 **Fix:**
 ```bash
 # Verify venv exists
-ls /Users/sloth/.openclaw/workspace/cheese-brain/venv/
+ls ~/.openclaw/workspace/cheese-brain/venv/
 
 # Manually activate and test
-source /Users/sloth/.openclaw/workspace/cheese-brain/venv/bin/activate
+source ~/.openclaw/workspace/cheese-brain/venv/bin/activate
 cheese-brain --version
 ```
 
 If venv missing, reinstall:
 ```bash
-cd /Users/sloth/.openclaw/workspace/cheese-brain
+cd ~/.openclaw/workspace/cheese-brain
 python3 -m venv venv
 source venv/bin/activate
 pip install -e .
@@ -590,8 +590,8 @@ cron run "Cheese Brain Daily Backup"
 
 | Task | Command |
 |------|---------|
-| Manual backup (JSON) | `/Users/sloth/.openclaw/workspace/scripts/backup_cheese_brain.sh` |
-| Manual backup (Parquet) | `BACKUP_FORMAT=parquet /Users/sloth/.openclaw/workspace/scripts/backup_cheese_brain.sh` |
+| Manual backup (JSON) | `~/.openclaw/workspace/scripts/backup_cheese_brain.sh` |
+| Manual backup (Parquet) | `BACKUP_FORMAT=parquet ~/.openclaw/workspace/scripts/backup_cheese_brain.sh` |
 | List backups | `ls -lh ~/.cheese-brain/backups/` |
 | View backup log | `tail -20 ~/.cheese-brain/backup.log` |
 | Full restore (JSON) | `cheese-brain restore-backup ~/.cheese-brain/backups/YYYY-MM-DD.json` |

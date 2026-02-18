@@ -161,7 +161,7 @@ cheese-brain query --category tool --sort-by title --sort-order asc
 ### Memory Search
 ```bash
 # Unified search across Cheese Brain + memory files
-/Users/sloth/.openclaw/workspace/scripts/memory_search.py "email monitoring"
+~/.openclaw/workspace/scripts/memory_search.py "email monitoring"
 # Returns: Structured entities (Cheese Brain) + text matches (memory files)
 ```
 
@@ -183,7 +183,7 @@ cheese-brain scan memory/2026-02-18.md --auto-add
 - ✅ No phone numbers
 - ✅ No API keys/tokens
 - ✅ No personal identifiers
-- ℹ️  Documentation paths (`/Users/sloth/...`) in TODO.md are acceptable (informational only)
+- ✅ No personal home-directory paths (use `~`/`$HOME` placeholders in docs)
 
 **File permissions:**
 - Database: 0600 (owner-only)
@@ -234,7 +234,7 @@ cheese-brain scan memory/2026-02-18.md --auto-add
 **Phase 1 complete:** `phase1-complete` tag + database backup  
 **Phase 2 Sprint 2:** `phase2-sprint2-complete` tag + database backup (38MB)
 
-**Rollback script:** `/Users/sloth/.openclaw/workspace/scripts/rollback_cheese_brain.sh`
+**Rollback script:** `~/.openclaw/workspace/scripts/rollback_cheese_brain.sh`
 
 ---
 

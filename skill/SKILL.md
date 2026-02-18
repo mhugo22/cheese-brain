@@ -60,6 +60,59 @@ cheese-brain fts "backup config" --category tool
 
 **Output:** Table with title, category, tags + full entity details for matches.
 
+### Advanced Query (Multi-Field Filtering)
+
+When you need more control than simple keyword search:
+
+```bash
+# Multi-field filtering
+cheese-brain query --category project --tags shipped --since 2026-01-01
+
+# Tag logic (any=OR)
+cheese-brain query --tags monitoring,automation --tags-mode any
+
+# Filter on JSON fields (data.status, data.version, etc.)
+cheese-brain query --json-filter status=active,version=1.0
+
+# Sorting
+cheese-brain query --category tool --sort-by title --sort-order asc
+```
+
+### Relationship Tracking (Knowledge Graph)
+
+Track dependencies between entities (what uses what):
+
+```bash
+# Link entities
+cheese-brain link <from-id> <to-id> --type uses --note "Dependency"
+
+# List links
+cheese-brain links <entity-id>                 # both directions
+cheese-brain links <entity-id> --direction to  # what points to this
+
+# Visualize graph
+cheese-brain graph <entity-id>
+```
+
+### Bulk Import (CSV/JSON)
+
+Fast ingestion when you're populating lots of knowledge:
+
+```bash
+cheese-brain import-bulk entities.csv
+cheese-brain import-bulk entities.json --dry-run
+cheese-brain import-bulk updates.json --merge-duplicates
+```
+
+### Auto-Capture from Notes
+
+Extract entities from markdown files (daily notes):
+
+```bash
+cheese-brain scan path/to/daily-note.md --dry-run
+cheese-brain scan path/to/daily-note.md --auto-add --confidence 0.8
+```
+
 ### Get Specific Entity
 
 When search returns multiple results, get the exact one by ID:

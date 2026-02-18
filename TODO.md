@@ -66,7 +66,7 @@
 
 **Mission:** Build relationship tracking, bulk import, and OpenClaw integration so Cheese can remember everything Matt teaches and retrieve it instantly without hallucination.
 
-**See also:** `/Users/sloth/.openclaw/workspace/memory/2026-02-17-cheese-brain-phase2.md` for detailed sprint plan
+**See also:** `~/.openclaw/workspace/memory/2026-02-17-cheese-brain-phase2.md` for detailed sprint plan
 
 ### Priority Order (For AI Memory)
 1. ✅ **Relationship Tracking** - COMPLETE (Phase 2 Sprint 1)
@@ -282,7 +282,7 @@
   - Cron job: runs daily at 2:00 AM CST
   - Location: `~/.cheese-brain/backups/YYYY-MM-DD.json`
   - Retention: 30 days (automatic cleanup)
-  - Script: `/Users/sloth/.openclaw/workspace/scripts/backup_cheese_brain.sh`
+  - Script: `~/.openclaw/workspace/scripts/backup_cheese_brain.sh`
   - Log: `~/.cheese-brain/backup.log`
   - First backup: 44 entities, 32KB
   - Documentation: `BACKUP_RECOVERY.md` (12KB with full recovery procedures)
