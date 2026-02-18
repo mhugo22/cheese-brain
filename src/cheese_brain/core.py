@@ -246,6 +246,103 @@ class CheeseBrain:
 
         return self._row_to_entity(result)
 
+    def advanced_query(
+        self,
+        query: Optional[str] = None,
+        category: Optional[str] = None,
+        tags: Optional[list[str]] = None,
+        tags_mode: str = "all",  # "all" or "any"
+        since: Optional[datetime] = None,
+        until: Optional[datetime] = None,
+        json_filter: Optional[dict] = None,
+        sort_by: str = "updated_at",  # "updated_at", "created_at", "title"
+        sort_order: str = "desc",  # "desc" or "asc"
+        limit: int = 50,
+    ) -> list[Entity]:
+        """Advanced multi-field query with complex filtering.
+        
+        Args:
+            query: Optional keyword search (space-separated)
+            category: Optional category filter
+            tags: Optional list of tags
+            tags_mode: "all" (must have ALL tags) or "any" (must have ANY tag)
+            since: Optional date filter (entities created after this date)
+            until: Optional date filter (entities created before this date)
+            json_filter: Optional JSON path filters (e.g., {"status": "active", "version": "1.0"})
+            sort_by: Field to sort by (updated_at, created_at, title)
+            sort_order: "desc" or "asc"
+            limit: Maximum number of results
+            
+        Returns:
+            List of matching entities
+        """
+        where_clauses = ["deleted_at IS NULL"]
+        params = []
+        
+        # Keyword search
+        if query:
+            keywords = query.lower().split()
+            for keyword in keywords:
+                where_clauses.append(
+                    "(LOWER(title) LIKE ? OR CAST(data AS VARCHAR) ILIKE ? OR list_has_any(tags, [?]))"
+                )
+                params.extend([f"%{keyword}%", f"%{keyword}%", keyword])
+        
+        # Category filter
+        if category:
+            where_clauses.append("category = ?")
+            params.append(category)
+        
+        # Tag filters
+        if tags:
+            if tags_mode == "all":
+                # Must have ALL tags
+                for tag in tags:
+                    where_clauses.append("list_contains(tags, ?)")
+                    params.append(tag)
+            else:  # any
+                # Must have ANY tag
+                tag_conditions = " OR ".join(["list_contains(tags, ?)" for _ in tags])
+                where_clauses.append(f"({tag_conditions})")
+                params.extend(tags)
+        
+        # Date range filters
+        if since:
+            where_clauses.append("created_at >= ?")
+            params.append(since)
+        
+        if until:
+            where_clauses.append("created_at <= ?")
+            params.append(until)
+        
+        # JSON path filters
+        if json_filter:
+            for key, value in json_filter.items():
+                # Use json_extract_string for string comparisons
+                where_clauses.append(f"json_extract_string(data, '$.{key}') = ?")
+                params.append(str(value))
+        
+        # Build ORDER BY clause
+        sort_field_map = {
+            "updated_at": "updated_at",
+            "created_at": "created_at",
+            "title": "LOWER(title)"
+        }
+        sort_field = sort_field_map.get(sort_by, "updated_at")
+        order = "DESC" if sort_order == "desc" else "ASC"
+        
+        # Build final query
+        sql = f"""
+            SELECT * FROM entities
+            WHERE {' AND '.join(where_clauses)}
+            ORDER BY {sort_field} {order}
+            LIMIT ?
+        """
+        params.append(limit)
+        
+        results = self.conn.execute(sql, params).fetchall()
+        return [self._row_to_entity(row) for row in results]
+
     def search(
         self,
         query: str,

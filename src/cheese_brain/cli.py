@@ -59,7 +59,112 @@ def add(ctx, category, title, tags, data):
 
 
 @main.command()
-@click.argument("query")
+@click.option("--query", "-q", help="Keyword search (optional)")
+@click.option("--category", "-c", help="Filter by category")
+@click.option("--tags", "-t", help="Filter by tags (comma-separated)")
+@click.option("--tags-mode", type=click.Choice(["all", "any"]), default="all", help="Tag match mode (all=AND, any=OR)")
+@click.option("--since", help="Created after date (YYYY-MM-DD)")
+@click.option("--until", help="Created before date (YYYY-MM-DD)")
+@click.option("--json-filter", help="JSON filter (key=value pairs, comma-separated)")
+@click.option("--sort-by", type=click.Choice(["updated_at", "created_at", "title"]), default="updated_at", help="Sort field")
+@click.option("--sort-order", type=click.Choice(["desc", "asc"]), default="desc", help="Sort order")
+@click.option("--limit", default=50, help="Maximum results")
+@click.option("--format", "output_format", type=click.Choice(["table", "json"]), default="table")
+@click.option("--reveal", is_flag=True, help="Show sensitive field values in JSON output")
+@click.pass_context
+def query(ctx, query, category, tags, tags_mode, since, until, json_filter, sort_by, sort_order, limit, output_format, reveal):
+    """Advanced multi-field query with complex filtering.
+    
+    Examples:
+        cheese-brain query --category project --tags shipped
+        cheese-brain query --query "email" --tags monitoring,automation --tags-mode any
+        cheese-brain query --since 2026-01-01 --until 2026-02-01
+        cheese-brain query --json-filter status=active,version=1.0
+        cheese-brain query --category tool --sort-by title --sort-order asc
+    """
+    from cheese_brain.redaction import redact_dict
+    
+    brain = ctx.obj["brain"]
+    
+    # Parse tags
+    tag_list = [t.strip() for t in tags.split(",")] if tags else None
+    
+    # Parse dates
+    since_dt = datetime.fromisoformat(since) if since else None
+    until_dt = datetime.fromisoformat(until) if until else None
+    
+    # Parse JSON filter
+    json_filter_dict = None
+    if json_filter:
+        json_filter_dict = {}
+        for pair in json_filter.split(","):
+            if "=" in pair:
+                key, value = pair.split("=", 1)
+                json_filter_dict[key.strip()] = value.strip()
+    
+    # Execute query
+    results = brain.advanced_query(
+        query=query if query else None,
+        category=category,
+        tags=tag_list,
+        tags_mode=tags_mode,
+        since=since_dt,
+        until=until_dt,
+        json_filter=json_filter_dict,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        limit=limit,
+    )
+    
+    if output_format == "json":
+        output = []
+        for e in results:
+            entity_dict = e.model_dump()
+            entity_dict["data"] = redact_dict(e.data, reveal=reveal)
+            output.append(entity_dict)
+        click.echo(json.dumps(output, indent=2, default=str))
+    else:
+        if not results:
+            console.print("No results found.", style="yellow")
+            return
+        
+        # Build title
+        filters = []
+        if query:
+            filters.append(f"query='{query}'")
+        if category:
+            filters.append(f"category={category}")
+        if tag_list:
+            filters.append(f"tags={tags_mode}({','.join(tag_list)})")
+        if since:
+            filters.append(f"since={since}")
+        if until:
+            filters.append(f"until={until}")
+        if json_filter_dict:
+            filters.append(f"json={json_filter}")
+        
+        title = f"Query Results: {' | '.join(filters)}" if filters else "Query Results"
+        
+        table = Table(title=title)
+        table.add_column("Category", style="cyan")
+        table.add_column("Title", style="bold")
+        table.add_column("Tags", style="dim")
+        table.add_column("Created", style="dim")
+        
+        for entity in results:
+            table.add_row(
+                entity.category.value,
+                entity.title,
+                ", ".join(entity.tags[:3]) if entity.tags else "",
+                entity.created_at.strftime("%Y-%m-%d"),
+            )
+        
+        console.print(table)
+        console.print(f"\nFound {len(results)} results (sorted by {sort_by} {sort_order})", style="dim")
+
+
+@main.command()
+@click.argument("search_query")
 @click.option("--category", help="Filter by category")
 @click.option("--tags", help="Filter by tags (comma-separated, must match ALL)")
 @click.option("--since", help="Filter by date (YYYY-MM-DD)")
@@ -67,8 +172,8 @@ def add(ctx, category, title, tags, data):
 @click.option("--format", "output_format", type=click.Choice(["table", "json"]), default="table")
 @click.option("--reveal", is_flag=True, help="Show sensitive field values in JSON output")
 @click.pass_context
-def search(ctx, query, category, tags, since, limit, output_format, reveal):
-    """Search entities by keyword."""
+def search(ctx, search_query, category, tags, since, limit, output_format, reveal):
+    """Search entities by keyword (simple search)."""
     from cheese_brain.redaction import redact_dict
     
     brain = ctx.obj["brain"]
@@ -81,7 +186,7 @@ def search(ctx, query, category, tags, since, limit, output_format, reveal):
 
     # Search
     results = brain.search(
-        query=query,
+        query=search_query,
         category=category,
         tags=tag_list,
         since=since_dt,
@@ -595,6 +700,96 @@ def import_bulk(ctx, input_file, input_format, category, dry_run, skip_duplicate
         if dry_run:
             console.print("\n[yellow]ℹ️  This was a dry run. No changes were made.[/yellow]")
         
+    except Exception as e:
+        console.print(f"❌ Error: {e}", style="red")
+        import traceback
+        traceback.print_exc()
+
+
+@main.command()
+@click.argument("file_path", type=click.Path(exists=True))
+@click.option("--confidence", default=0.7, type=float, help="Minimum confidence threshold (0.0-1.0)")
+@click.option("--auto-add", is_flag=True, help="Automatically add entities above confidence threshold")
+@click.option("--dry-run", is_flag=True, help="Show what would be extracted without adding")
+@click.pass_context
+def scan(ctx, file_path, confidence, auto_add, dry_run):
+    """Scan a markdown file for entities to auto-capture.
+    
+    Examples:
+        cheese-brain scan memory/2026-02-18.md
+        cheese-brain scan memory/2026-02-18.md --auto-add
+        cheese-brain scan memory/2026-02-18.md --dry-run --confidence 0.8
+    """
+    from cheese_brain.auto_capture import scan_file
+    
+    brain = ctx.obj["brain"]
+    
+    console.print(f"\n🔍 Scanning: {file_path}", style="bold")
+    console.print(f"   Confidence threshold: {confidence}")
+    console.print(f"   Mode: {'AUTO-ADD' if auto_add else 'DRY-RUN' if dry_run else 'REVIEW'}\n")
+    
+    try:
+        results = scan_file(file_path, confidence_threshold=confidence)
+        
+        if not results["entities"]:
+            console.print("No entities found matching criteria.", style="yellow")
+            return
+        
+        console.print(f"Found {results['total']} potential entities:\n", style="green")
+        
+        # Display results
+        table = Table(title=f"Extracted Entities (confidence >= {confidence})")
+        table.add_column("Category", style="cyan")
+        table.add_column("Title", style="bold")
+        table.add_column("Description", style="dim")
+        table.add_column("Confidence", style="yellow")
+        table.add_column("Source", style="dim")
+        
+        for entity in results["entities"]:
+            desc = entity["data"].get("description", "")[:50]
+            table.add_row(
+                entity["category"],
+                entity["title"],
+                desc,
+                f"{entity['confidence']:.0%}",
+                entity["source"]
+            )
+        
+        console.print(table)
+        
+        if auto_add and not dry_run:
+            console.print(f"\n📦 Adding {len(results['entities'])} entities to database...", style="yellow")
+            
+            added_count = 0
+            skipped_count = 0
+            
+            for entity in results["entities"]:
+                # Check for duplicates
+                existing = brain.search(entity["title"], category=entity["category"], limit=1)
+                if existing and existing[0].title.lower() == entity["title"].lower():
+                    skipped_count += 1
+                    continue
+                
+                # Add entity
+                from cheese_brain.models import Entity, EntityCategory
+                new_entity = Entity(
+                    category=EntityCategory(entity["category"]),
+                    title=entity["title"],
+                    data=entity["data"],
+                    tags=entity.get("tags", [])
+                )
+                brain.add_entity(new_entity)
+                added_count += 1
+            
+            console.print(f"✅ Added {added_count} entities", style="green")
+            if skipped_count > 0:
+                console.print(f"⏭️  Skipped {skipped_count} duplicates", style="dim")
+        
+        elif dry_run:
+            console.print(f"\nℹ️  This was a dry run. No entities were added.", style="yellow")
+        else:
+            console.print(f"\n💡 To add these entities, run with --auto-add flag", style="yellow")
+    
     except Exception as e:
         console.print(f"❌ Error: {e}", style="red")
         import traceback

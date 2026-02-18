@@ -71,9 +71,11 @@
 ### Priority Order (For AI Memory)
 1. ✅ **Relationship Tracking** - COMPLETE (Phase 2 Sprint 1)
 2. ✅ **Bulk Import** - COMPLETE (Phase 2 Sprint 2)
-3. **Advanced Queries** - multi-field filtering for complex retrieval
-4. **OpenClaw Integration** - unified search across Cheese Brain + memory files
-5. **Auto-Capture** - extract entities from daily notes automatically
+3. ✅ **Advanced Queries** - COMPLETE (Phase 2 Sprint 3)
+4. ✅ **OpenClaw Integration** - COMPLETE (Phase 2 Sprint 4)
+5. ✅ **Auto-Capture** - COMPLETE (Phase 2 Sprint 5)
+
+**PHASE 2 COMPLETE** - All AI memory features shipped! 🎉
 
 ---
 
@@ -162,6 +164,93 @@
 **Completion:** 2026-02-18  
 **Files Modified:** core.py, cli.py, README.md, TODO.md  
 **Database:** 110 → 120 entities
+
+---
+
+## 🚀 Phase 2 Sprint 3: Advanced Queries ✅ COMPLETE
+
+### Implemented Features
+- [x] **advanced_query() method** in core.py
+  - Multi-field query builder
+  - Tag modes: "all" (AND) or "any" (OR)
+  - Date range filters: since/until
+  - JSON path filtering: `{"status": "active", "version": "1.0"}`
+  - Sort options: updated_at, created_at, title
+  - Sort order: desc/asc
+- [x] **CLI command** (`query`)
+  - `--query` keyword search (optional)
+  - `--category`, `--tags`, `--tags-mode`
+  - `--since`, `--until` date ranges
+  - `--json-filter key=value,key2=value2`
+  - `--sort-by`, `--sort-order`
+  - Rich table output with filter summary
+
+### Testing Results
+- ✅ Category + tags filter: 2 results (Redis, PostgreSQL)
+- ✅ Date range filtering: Working
+- ✅ JSON path filtering: Working
+- ✅ Sort by title ascending: Working
+- ✅ Tag modes (all/any): Working
+
+**Completion:** 2026-02-18 (~30 min)  
+**Files Modified:** core.py, cli.py, README.md
+
+---
+
+## 🚀 Phase 2 Sprint 4: OpenClaw Integration ✅ COMPLETE
+
+### Implemented Features
+- [x] **Enhanced memory_search.py**
+  - JSON output parsing from cheese-brain CLI
+  - Structured entity display (category, title, tags, data fields)
+  - Relevance sorting (exact match first, then alphabetical)
+  - Show top 10 entities with description/URL/status/path
+  - Combined results: Cheese Brain entities + file matches
+  - Better UX: Counts, tips, weighted results explanation
+- [x] **Graceful fallback**
+  - If Cheese Brain unavailable, file search still works
+  - Timeout protection (5 seconds)
+  - Error handling with informative messages
+
+### Testing Results
+- ✅ Memory search: 7 structured entities + file matches
+- ✅ Relevant field extraction (description, URL, path)
+- ✅ Fallback to file search: Working
+- ✅ Combined summary: Working
+
+**Completion:** 2026-02-18 (~20 min)  
+**Files Modified:** memory_search.py, README.md
+
+---
+
+## 🚀 Phase 2 Sprint 5: Auto-Capture ✅ COMPLETE
+
+### Implemented Features
+- [x] **EntityExtractor class** (auto_capture.py)
+  - Explicit patterns: `**Tool:** Name - description`
+  - Generic patterns: `- tool: Name (tags) - description`
+  - Cheese Digest section parsing: `## 🧀 Cheese Digest`
+  - Confidence scoring: 0.8-0.9 based on pattern specificity
+  - Deduplication within scan results
+- [x] **Pattern support**
+  - Tool, Workflow, Decision, Project, API, Infrastructure
+  - Tags extraction from parentheses
+  - Description extraction after dash
+- [x] **CLI command** (`scan`)
+  - `cheese-brain scan <file> [--confidence] [--auto-add] [--dry-run]`
+  - Rich table output with confidence scores
+  - Duplicate detection before adding
+  - Statistics: added/skipped counts
+
+### Testing Results
+- ✅ Explicit patterns: 6 entities extracted (pytest, Daily Backup, etc.)
+- ✅ Generic patterns: 3 entities extracted (SQLAlchemy, mypy, CI/CD)
+- ✅ Confidence scores: 90% (explicit) vs 80% (generic)
+- ✅ Dry-run mode: Working
+- ✅ Auto-add mode: Not tested (would duplicate entities)
+
+**Completion:** 2026-02-18 (~40 min)  
+**Files Modified:** auto_capture.py (new), cli.py, README.md
 
 ---
 

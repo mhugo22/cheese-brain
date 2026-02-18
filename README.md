@@ -124,26 +124,35 @@ Track anything that matters:
 ### 🔍 Powerful Queries
 
 ```bash
-# Keyword search
+# Keyword search (simple)
 cheese-brain search "email"
 
 # Full-text search (BM25 relevance ranking)
 cheese-brain fts "backup config"
 # Returns: Config Backup Script (score: 2.413) - best match first
 
-# Filter by category
-cheese-brain list --category contact
+# Advanced multi-field queries
+cheese-brain query --category project --tags shipped --since 2026-01-01
+cheese-brain query --category tool --sort-by title --sort-order asc
+cheese-brain query --json-filter status=active,version=1.0
+cheese-brain query --tags monitoring,automation --tags-mode any
 
-# Date range
-cheese-brain list --since 2026-01-01
-
-# Tags
-cheese-brain list --tags security,webapp
+# Complex filtering
+cheese-brain query \
+  --category project \
+  --tags shipped,security \
+  --tags-mode all \
+  --since 2026-01-01 \
+  --until 2026-02-01 \
+  --json-filter status=active \
+  --sort-by updated_at \
+  --limit 20
 ```
 
-**FTS vs Regular Search:**
-- **FTS:** Relevance-ranked (BM25), stemming, stopword filtering
-- **Regular:** Chronological, exact matches, category/tag/date filters
+**Query Types:**
+- **Simple search:** Keyword matching (fast, chronological)
+- **FTS:** Relevance-ranked (BM25), stemming, stopword filtering  
+- **Advanced query:** Multi-field filtering, date ranges, JSON path, tag logic
 - [Full FTS documentation →](FTS.md)
 
 ### 🔗 Relationship Tracking
@@ -238,6 +247,43 @@ PostgreSQL,tool,"database,sql",Advanced database,https://postgresql.org,16
 - ✅ Custom fields → data JSON
 
 **Time savings:** Import 30 entities in 30 seconds vs 15 minutes manually
+
+### 📝 Auto-Capture from Notes
+
+Extract entities automatically from markdown files:
+
+```bash
+# Scan daily note for entities
+cheese-brain scan memory/2026-02-18.md
+
+# Auto-add high-confidence entities
+cheese-brain scan memory/2026-02-18.md --auto-add
+
+# Custom confidence threshold
+cheese-brain scan notes.md --confidence 0.8
+```
+
+**Supported patterns:**
+```markdown
+## 🧀 Cheese Digest
+- **Tool:** pytest - Python testing framework
+- **Workflow:** Daily Backup - Automated backups to S3
+- **Decision:** Use TypeScript - Type safety prevents bugs
+- **Project:** Weather Dashboard (tags,here) - Description
+
+Also works:
+- tool: mypy (python,typing) - Static type checker
+```
+
+**Features:**
+- Explicit pattern detection (**Tool:**, **Workflow:**, etc.)
+- Generic pattern support (- category: title)
+- Cheese Digest section parsing (## 🧀 Cheese Digest)
+- Confidence scoring (0.7-0.9)
+- Automatic duplicate detection
+- Dry-run validation
+
+**Time savings:** Extract 10 entities from notes in seconds vs manual entry
 
 ### 🔄 Backup & Restore
 
