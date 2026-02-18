@@ -62,7 +62,22 @@
 
 ---
 
-## 🚀 Phase 2 Features (From PROJECT_PLAN.md)
+## 🚀 Phase 2 Features - AI Memory System
+
+**Mission:** Build relationship tracking, bulk import, and OpenClaw integration so Cheese can remember everything Matt teaches and retrieve it instantly without hallucination.
+
+**See also:** `/Users/sloth/.openclaw/workspace/memory/2026-02-17-cheese-brain-phase2.md` for detailed sprint plan
+
+### Priority Order (For AI Memory)
+1. **Relationship Tracking** - link entities together (email → project, workflow → tool)
+2. **Bulk Import** - add 30+ entities at once from CSV/JSON
+3. **Advanced Queries** - multi-field filtering for complex retrieval
+4. **OpenClaw Integration** - unified search across Cheese Brain + memory files
+5. **Auto-Capture** - extract entities from daily notes automatically
+
+---
+
+## 🚀 Phase 2 Features (Detailed)
 
 ### Advanced Search & Retrieval
 - [x] **Full-text search (FTS) implementation** ✅
