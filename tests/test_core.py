@@ -273,3 +273,49 @@ def test_get_stats(brain):
     assert stats["by_category"]["project"] == 1
     assert stats["by_category"]["tool"] == 1
     assert stats["db_size_bytes"] > 0
+
+
+def test_update_entity_with_relationships(brain):
+    """Test updating an entity that has relationships (DuckDB foreign key workaround)."""
+    from cheese_brain.models import RelationshipType
+    
+    # Create two entities
+    tool_id = brain.add_entity(Entity(
+        category=EntityCategory.TOOL,
+        title="Python",
+        data={"version": "3.11"},
+        tags=["language"]
+    ))
+    
+    project_id = brain.add_entity(Entity(
+        category=EntityCategory.PROJECT,
+        title="My Project",
+        data={"status": "active"},
+        tags=["dev"]
+    ))
+    
+    # Create relationship
+    rel_id = brain.add_relationship(
+        from_id=project_id,
+        to_id=tool_id,
+        relationship_type=RelationshipType.USES
+    )
+    
+    # Update the project entity (this should work despite the relationship)
+    updated = brain.update(
+        project_id,
+        data={"status": "shipped", "version": "1.0"},
+        tags=["dev", "shipped"]
+    )
+    
+    # Verify update worked
+    assert updated.data["status"] == "shipped"
+    assert updated.data["version"] == "1.0"
+    assert "shipped" in updated.tags
+    
+    # Verify relationship still exists
+    relationships = brain.get_relationships(project_id)
+    assert len(relationships) == 1
+    rel, related_entity = relationships[0]
+    assert related_entity.title == "Python"
+    assert rel.relationship_type == RelationshipType.USES

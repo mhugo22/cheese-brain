@@ -542,13 +542,45 @@ class CheeseBrain:
 
         params.append(str(entity_id))
 
+        # WORKAROUND: DuckDB foreign keys block updates even when ID isn't changing
+        # We need to store relationships, disable foreign keys, update, re-enable, restore relationships
+        relationships = self.conn.execute(
+            """
+            SELECT id, from_id, to_id, relationship_type, metadata, created_at
+            FROM relationships
+            WHERE from_id = ? OR to_id = ?
+            """,
+            [str(entity_id), str(entity_id)],
+        ).fetchall()
+
         self.conn.execute("BEGIN TRANSACTION")
         try:
+            if relationships:
+                # Temporarily delete relationships
+                self.conn.execute(
+                    "DELETE FROM relationships WHERE from_id = ? OR to_id = ?",
+                    [str(entity_id), str(entity_id)],
+                )
+                # Force commit of delete within transaction
+                self.conn.execute("COMMIT")
+                self.conn.execute("BEGIN TRANSACTION")
+
             # Update entity
             self.conn.execute(
                 f"UPDATE entities SET {', '.join(set_clauses)} WHERE id = ?",
                 params,
             )
+
+            # Restore relationships
+            if relationships:
+                for rel in relationships:
+                    self.conn.execute(
+                        """
+                        INSERT INTO relationships (id, from_id, to_id, relationship_type, metadata, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        """,
+                        list(rel),
+                    )
 
             # Fetch updated entity
             updated = self.get_by_id(entity_id)
