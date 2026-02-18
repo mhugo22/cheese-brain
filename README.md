@@ -146,6 +146,50 @@ cheese-brain list --tags security,webapp
 - **Regular:** Chronological, exact matches, category/tag/date filters
 - [Full FTS documentation →](FTS.md)
 
+### 🔗 Relationship Tracking
+
+Link entities together to build a knowledge graph:
+
+```bash
+# Create relationships
+cheese-brain link <workflow-id> <tool-id> --type uses
+cheese-brain link <email-id> <project-id> --type belongs_to
+
+# View relationships
+cheese-brain links <entity-id>
+# Output:
+# 📎 Relationships for: Gabby Gmail Monitor
+#   → uses → Gmail API Integration (infrastructure)
+#   → related_to → Gabby Gmail Repository (bookmark)
+
+# Visual graph
+cheese-brain graph <entity-id>
+# Output:
+# 🔗 Relationship Graph
+# USES
+#   → Gmail API Integration (infrastructure)
+# RELATED_TO
+#   → Gabby Gmail Repository (bookmark)
+
+# Delete relationship
+cheese-brain unlink <relationship-id>
+```
+
+**Relationship Types:**
+- `uses` - Workflow uses Tool, Project uses Email
+- `belongs_to` - Email belongs to Project
+- `requires` - Project requires Infrastructure
+- `related_to` - Generic bidirectional link
+- `depends_on` - Project depends on Service
+- `documents` - Bookmark documents Project
+- `implements` - Code implements Design
+
+**Use cases:**
+- "What tools does this workflow use?"
+- "Which projects use this email account?"
+- "Show me all documentation for this project"
+- Build dependency graphs for projects
+
 ### 🔄 Backup & Restore
 
 ```bash
@@ -188,6 +232,19 @@ brain.add_entity(
     data={"reason": "Fast analytics, git-friendly, zero config"},
     tags=["architecture", "database"]
 )
+
+# Agent builds knowledge graph
+from cheese_brain.models import RelationshipType
+
+brain.add_relationship(
+    from_id=workflow_id,
+    to_id=tool_id,
+    relationship_type=RelationshipType.USES
+)
+
+# Agent queries relationships
+relationships = brain.get_relationships(entity_id)
+# Returns: [(relationship, related_entity), ...]
 ```
 
 ---
@@ -236,7 +293,7 @@ cheese-brain restore-backup backup.json  # Auto-detects encryption
                    │
 ┌──────────────────▼──────────────────────────┐
 │            DuckDB Engine                    │
-│  Entities (JSON + Arrays) | Audit Log       │
+│ Entities | Relationships | Audit Log       │
 └──────────────────┬──────────────────────────┘
                    │
 ┌──────────────────▼──────────────────────────┐

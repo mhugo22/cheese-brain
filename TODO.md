@@ -69,11 +69,49 @@
 **See also:** `/Users/sloth/.openclaw/workspace/memory/2026-02-17-cheese-brain-phase2.md` for detailed sprint plan
 
 ### Priority Order (For AI Memory)
-1. **Relationship Tracking** - link entities together (email → project, workflow → tool)
+1. ✅ **Relationship Tracking** - COMPLETE (Phase 2 Sprint 1)
 2. **Bulk Import** - add 30+ entities at once from CSV/JSON
 3. **Advanced Queries** - multi-field filtering for complex retrieval
 4. **OpenClaw Integration** - unified search across Cheese Brain + memory files
 5. **Auto-Capture** - extract entities from daily notes automatically
+
+---
+
+## 🚀 Phase 2 Sprint 1: Relationship Tracking ✅ COMPLETE
+
+### Implemented Features
+- [x] **Relationships table** with 7 relationship types
+  - `uses`, `belongs_to`, `requires`, `related_to`, `depends_on`, `documents`, `implements`
+  - Foreign key constraints to entities table
+  - Metadata JSON field for contextual notes
+  - Automatic schema migration from 1.0.0 → 1.1.0
+- [x] **CLI commands**
+  - `cheese-brain link <from> <to> --type <type> [--note]` - Create relationship
+  - `cheese-brain unlink <rel-id>` - Delete relationship
+  - `cheese-brain links <entity-id> [--direction] [--type]` - Show relationships
+  - `cheese-brain graph <entity-id> [--type]` - Visual relationship graph
+- [x] **Core API methods**
+  - `add_relationship()` - Create with validation
+  - `get_relationships()` - Query with filters (direction, type)
+  - `delete_relationship()` - Remove links
+  - `get_relationship_graph()` - Build knowledge graph
+- [x] **Comprehensive testing**
+  - Invalid entity validation
+  - Direction filters (from/to/both)
+  - Relationship type filters
+  - Multiple relationships between same entities
+  - Metadata storage
+  - Delete operations
+- [x] **Documentation**
+  - RELATIONSHIPS.md (11KB comprehensive guide)
+  - Updated README.md with examples
+  - Python API examples
+  - CLI usage patterns
+
+**Completion:** 2026-02-18  
+**Files Modified:** core.py, models.py, cli.py, README.md  
+**New Files:** RELATIONSHIPS.md  
+**Schema Version:** 1.0.0 → 1.1.0
 
 ---
 

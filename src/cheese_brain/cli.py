@@ -11,7 +11,7 @@ from rich.table import Table
 from rich import print as rprint
 
 from cheese_brain.core import CheeseBrain
-from cheese_brain.models import Entity, EntityCategory
+from cheese_brain.models import Entity, EntityCategory, RelationshipType
 
 
 console = Console()
@@ -521,6 +521,267 @@ def tags(ctx, limit):
         table.add_row(tag, str(count))
 
     console.print(table)
+
+
+@main.command()
+@click.argument("from_id", type=str)
+@click.argument("to_id", type=str)
+@click.option(
+    "--type",
+    "rel_type",
+    type=click.Choice(["uses", "belongs_to", "requires", "related_to", "depends_on", "documents", "implements"]),
+    required=True,
+    help="Type of relationship",
+)
+@click.option("--note", help="Optional note (stored in metadata)")
+@click.pass_context
+def link(ctx, from_id, to_id, rel_type, note):
+    """Create a relationship between two entities.
+    
+    Examples:
+        cheese-brain link <workflow-id> <tool-id> --type uses
+        cheese-brain link <email-id> <project-id> --type belongs_to --note "Primary account"
+    """
+    from cheese_brain.models import RelationshipType
+    
+    brain = ctx.obj["brain"]
+    
+    try:
+        from_uuid = UUID(from_id)
+        to_uuid = UUID(to_id)
+        
+        metadata = {"note": note} if note else {}
+        
+        rel_id = brain.add_relationship(
+            from_id=from_uuid,
+            to_id=to_uuid,
+            relationship_type=RelationshipType(rel_type),
+            metadata=metadata,
+        )
+        
+        console.print(f"✅ Created relationship: {rel_id}", style="green")
+        console.print(f"   From: {from_id}")
+        console.print(f"   To: {to_id}")
+        console.print(f"   Type: {rel_type}")
+        if note:
+            console.print(f"   Note: {note}")
+            
+    except ValueError as e:
+        console.print(f"❌ {e}", style="red")
+    except Exception as e:
+        console.print(f"❌ Error: {e}", style="red")
+
+
+@main.command()
+@click.argument("relationship_id", type=str)
+@click.pass_context
+def unlink(ctx, relationship_id):
+    """Delete a relationship by ID."""
+    brain = ctx.obj["brain"]
+    
+    try:
+        rel_uuid = UUID(relationship_id)
+        brain.delete_relationship(rel_uuid)
+        console.print(f"✅ Deleted relationship: {relationship_id}", style="green")
+    except ValueError as e:
+        console.print(f"❌ {e}", style="red")
+    except Exception as e:
+        console.print(f"❌ Error: {e}", style="red")
+
+
+@main.command()
+@click.argument("entity_id", type=str)
+@click.option(
+    "--direction",
+    type=click.Choice(["from", "to", "both"]),
+    default="both",
+    help="Show relationships from/to this entity (default: both)",
+)
+@click.option(
+    "--type",
+    "rel_type",
+    type=click.Choice(["uses", "belongs_to", "requires", "related_to", "depends_on", "documents", "implements"]),
+    help="Filter by relationship type",
+)
+@click.option("--format", "output_format", type=click.Choice(["table", "json"]), default="table")
+@click.pass_context
+def links(ctx, entity_id, direction, rel_type, output_format):
+    """Show all relationships for an entity.
+    
+    Examples:
+        cheese-brain links <entity-id>
+        cheese-brain links <entity-id> --direction from
+        cheese-brain links <entity-id> --type uses
+    """
+    from cheese_brain.models import RelationshipType
+    
+    brain = ctx.obj["brain"]
+    
+    try:
+        entity_uuid = UUID(entity_id)
+        
+        # Get entity to show context
+        entity = brain.get_by_id(entity_uuid)
+        if not entity:
+            console.print(f"❌ Entity {entity_id} not found", style="red")
+            return
+        
+        # Get relationships
+        rel_type_enum = RelationshipType(rel_type) if rel_type else None
+        relationships = brain.get_relationships(
+            entity_id=entity_uuid,
+            direction=direction,
+            relationship_type=rel_type_enum,
+        )
+        
+        if output_format == "json":
+            output = []
+            for rel, related_entity in relationships:
+                output.append({
+                    "relationship_id": str(rel.id),
+                    "from_id": str(rel.from_id),
+                    "to_id": str(rel.to_id),
+                    "type": rel.relationship_type.value,
+                    "metadata": rel.metadata,
+                    "related_entity": {
+                        "id": str(related_entity.id),
+                        "category": related_entity.category.value,
+                        "title": related_entity.title,
+                        "tags": related_entity.tags,
+                    },
+                })
+            click.echo(json.dumps(output, indent=2, default=str))
+        else:
+            console.print(f"\n📎 Relationships for: {entity.title}", style="bold cyan")
+            console.print(f"   Category: {entity.category.value}")
+            console.print(f"   ID: {entity_id}\n")
+            
+            if not relationships:
+                console.print("No relationships found.", style="yellow")
+                return
+            
+            table = Table(title=f"Relationships ({len(relationships)} total)")
+            table.add_column("Direction", style="dim")
+            table.add_column("Type", style="cyan")
+            table.add_column("Related Entity", style="bold")
+            table.add_column("Category", style="dim")
+            table.add_column("Rel ID", style="dim")
+            
+            for rel, related_entity in relationships:
+                # Determine direction arrow
+                if rel.from_id == entity_uuid:
+                    direction_arrow = "→"
+                else:
+                    direction_arrow = "←"
+                
+                table.add_row(
+                    direction_arrow,
+                    rel.relationship_type.value,
+                    related_entity.title,
+                    related_entity.category.value,
+                    str(rel.id)[:8] + "...",
+                )
+            
+            console.print(table)
+            
+    except ValueError as e:
+        console.print(f"❌ {e}", style="red")
+    except Exception as e:
+        console.print(f"❌ Error: {e}", style="red")
+
+
+@main.command()
+@click.argument("entity_id", type=str)
+@click.option("--depth", default=1, type=int, help="Depth of graph traversal (default: 1)")
+@click.option(
+    "--type",
+    "rel_type",
+    type=click.Choice(["uses", "belongs_to", "requires", "related_to", "depends_on", "documents", "implements"]),
+    help="Filter by relationship type",
+)
+@click.option("--format", "output_format", type=click.Choice(["tree", "json"]), default="tree")
+@click.pass_context
+def graph(ctx, entity_id, depth, rel_type, output_format):
+    """Show relationship graph starting from an entity.
+    
+    Examples:
+        cheese-brain graph <entity-id>
+        cheese-brain graph <entity-id> --depth 2
+        cheese-brain graph <entity-id> --type uses
+    """
+    from cheese_brain.models import RelationshipType
+    
+    brain = ctx.obj["brain"]
+    
+    try:
+        entity_uuid = UUID(entity_id)
+        rel_type_enum = RelationshipType(rel_type) if rel_type else None
+        
+        graph_data = brain.get_relationship_graph(
+            entity_id=entity_uuid,
+            depth=depth,
+            relationship_type=rel_type_enum,
+        )
+        
+        if output_format == "json":
+            output = {
+                "entity": {
+                    "id": str(graph_data["entity"].id),
+                    "category": graph_data["entity"].category.value,
+                    "title": graph_data["entity"].title,
+                },
+                "relationships": []
+            }
+            for rel in graph_data["relationships"]:
+                output["relationships"].append({
+                    "type": rel["type"],
+                    "direction": rel["direction"],
+                    "depth": rel["depth"],
+                    "relationship_id": rel["relationship_id"],
+                    "related": {
+                        "id": str(rel["related"].id),
+                        "category": rel["related"].category.value,
+                        "title": rel["related"].title,
+                    },
+                })
+            click.echo(json.dumps(output, indent=2, default=str))
+        else:
+            entity = graph_data["entity"]
+            relationships = graph_data["relationships"]
+            
+            console.print(f"\n🔗 Relationship Graph", style="bold cyan")
+            console.print(f"\n📍 Root: {entity.title}", style="bold")
+            console.print(f"   Category: {entity.category.value}")
+            console.print(f"   ID: {entity_id}\n")
+            
+            if not relationships:
+                console.print("No relationships found.", style="yellow")
+                return
+            
+            # Group by relationship type
+            by_type = {}
+            for rel in relationships:
+                rel_type = rel["type"]
+                if rel_type not in by_type:
+                    by_type[rel_type] = []
+                by_type[rel_type].append(rel)
+            
+            for rel_type, rels in by_type.items():
+                console.print(f"\n{rel_type.upper()}", style="cyan bold")
+                for rel in rels:
+                    arrow = "  →" if rel["direction"] == "from" else "  ←"
+                    console.print(
+                        f"{arrow} {rel['related'].title} "
+                        f"({rel['related'].category.value})",
+                        style="dim" if rel['direction'] == "to" else "white"
+                    )
+            
+            console.print(f"\nTotal relationships: {len(relationships)}", style="dim")
+            
+    except ValueError as e:
+        console.print(f"❌ {e}", style="red")
+    except Exception as e:
+        console.print(f"❌ Error: {e}", style="red")
 
 
 if __name__ == "__main__":

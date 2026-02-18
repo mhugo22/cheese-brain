@@ -111,6 +111,38 @@ class Entity(BaseModel):
         return self.deleted_at is not None
 
 
+class RelationshipType(str, Enum):
+    """Supported relationship types."""
+
+    USES = "uses"  # Workflow uses Tool, Project uses Email Account
+    BELONGS_TO = "belongs_to"  # Email belongs to Project, Tool belongs to Workflow
+    REQUIRES = "requires"  # Project requires Tool, Workflow requires API
+    RELATED_TO = "related_to"  # Generic bidirectional relationship
+    DEPENDS_ON = "depends_on"  # Project depends on Infrastructure
+    DOCUMENTS = "documents"  # Bookmark documents Project, Note documents Decision
+    IMPLEMENTS = "implements"  # Tool implements Workflow, Code implements Design
+
+
+class Relationship(BaseModel):
+    """Relationship between two entities."""
+
+    id: UUID = Field(default_factory=uuid4)
+    from_id: UUID
+    to_id: UUID
+    relationship_type: RelationshipType
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_serializer('id', 'from_id', 'to_id', 'created_at')
+    def serialize_special_types(self, value):
+        """Serialize UUID and datetime fields to string."""
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, UUID):
+            return str(value)
+        return value
+
+
 class AuditLog(BaseModel):
     """Audit log entry for tracking changes."""
 
