@@ -305,13 +305,13 @@ def create_fts_index(ctx, force):
         console.print(f"❌ Error creating FTS index: {e}", style="red")
 
 
-@main.command()
+@main.command(name="list")
 @click.option("--category", help="Filter by category")
 @click.option("--limit", default=50, help="Maximum results")
 @click.option("--deleted", is_flag=True, help="Show deleted entities")
 @click.option("--format", "output_format", type=click.Choice(["table", "json"]), default="table")
 @click.pass_context
-def list(ctx, category, limit, deleted, output_format):
+def list_entities(ctx, category, limit, deleted, output_format):
     """List entities."""
     brain = ctx.obj["brain"]
 
